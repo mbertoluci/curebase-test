@@ -31,6 +31,11 @@ export class AllExceptionsFilter implements ExceptionFilter {
     // in the error envelope.
     const path = request.url.split('?')[0];
     const body = this.toErrorBody(exception, path);
+    // Nest's default 404 message also embeds the request URL. Removing the
+    // query from `path` alone would still echo it through that message.
+    if (exception instanceof HttpException && request.url.includes('?')) {
+      body.message = body.message.replaceAll(request.url, path);
+    }
 
     if (body.statusCode >= HttpStatus.INTERNAL_SERVER_ERROR) {
       // Log the real error server-side; the client only gets the safe envelope.
