@@ -1,0 +1,3 @@
+# Format staged files, then validate everything the change affects.
+npx lint-staged
+npx nx affected -t typecheck lint test --parallel=3

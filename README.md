@@ -1,109 +1,145 @@
-# New Nx Repository
+# Curebase BMI - Participant Capture
 
-<a alt="Nx logo" href="https://nx.dev" target="_blank" rel="noreferrer"><img src="https://raw.githubusercontent.com/nrwl/nx/master/images/nx-logo.png" width="45"></a>
+A small but complete full-stack app that captures demographic + health data, computes and stores **BMI**, and lets you browse, filter, sort and paginate the records.
 
-✨ Your new, shiny [Nx workspace](https://nx.dev) is ready ✨.
+- **API**: NestJS 11 (layered: controller → service → repository), Prisma 6, PostgreSQL
+- **Web**: Next.js 16 (App Router, React 19)
+- **Shared**: a framework-free `@org/contracts` library holding the BMI domain logic, unit rules and wire types - used by **both** apps so they can never disagree on a calculation
+- **Monorepo**: Nx 24, with ESLint + Prettier + Jest and a Husky pre-commit gate
 
-[Learn more about this workspace setup and its capabilities](https://nx.dev/docs/technologies/typescript/introduction?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) or run `npx nx graph` to visually explore what was created. Now, let's get you up to speed!
+---
 
-🚀 If you haven't connected to Nx Cloud yet, [complete your setup here](https://cloud.nx.app/get-started). Get faster builds with remote caching, distributed task execution, and self-healing CI. [See how your workspace can benefit](#nx-cloud).
+## Quickstart
 
-## Generate a library
+```bash
+# 0) prerequisites: Node 20+ (22 recommended), Docker, npm
+npm install
+cp .env.example .env
 
-```sh
-npx nx g @nx/js:lib packages/pkg1 --publishable --importPath=@my-org/pkg1
+# 1) database
+npm run db:up          # starts Postgres (docker-compose) on localhost:5433
+npm run db:migrate     # applies migrations + generates the Prisma client
+
+# 2) run both apps
+npm run dev            # API on :3333, web on :3000
 ```
 
-## Run tasks
+Open the web app at **http://localhost:3000**. API docs (OpenAPI/Swagger) are at **http://localhost:3333/api/docs**.
 
-To build the library use:
+Run API and web separately with `npm run dev:api` / `npm run dev:web`.
 
-```sh
-npx nx run pkg1:build
-```
+---
 
-To run any task with Nx use:
-
-```sh
-npx nx run <project-name>:<target>
-```
-
-These targets are either [inferred automatically](https://nx.dev/docs/concepts/inferred-tasks?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) or defined in the `project.json` or `package.json` files.
-
-[More about running tasks in the docs &raquo;](https://nx.dev/docs/features/run-tasks?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-
-## Versioning and releasing
-
-To version and release the library use
+## Project layout
 
 ```
-npx nx release
+apps/
+  api/                 NestJS API
+    prisma/            schema + migrations (incl. the partial unique index)
+    src/
+      database/        PrismaService (connection lifecycle) + global module
+      common/
+        errors/        AppException base, global exception filter, @Throws
+        validation/    generic @Exists validator (+ module)
+        audit/         AuditService (append-only audit_log, same-tx writes)
+      features/
+        participants/  controller · dto · service · repository · type · error · module
+  api-e2e/             HTTP smoke tests against a running API
+  web/                 Next.js app (form + table)
+libs/
+  contracts/           shared BMI logic, unit rules, wire types, error codes
 ```
 
-Pass `--dry-run` to see what would happen without actually releasing the library.
+### Request flow (one layer, one job)
 
-[Learn more about Nx release &raquo;](https://nx.dev/docs/features/manage-releases?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-
-## Keep TypeScript project references up to date
-
-Nx automatically updates TypeScript [project references](https://www.typescriptlang.org/docs/handbook/project-references.html) in `tsconfig.json` files to ensure they remain accurate based on your project dependencies (`import` or `require` statements). This sync is automatically done when running tasks such as `build` or `typecheck`, which require updated references to function correctly.
-
-To manually trigger the process to sync the project graph dependencies information to the TypeScript project references, run the following command:
-
-```sh
-npx nx sync
+```
+HTTP → Controller → Service → Repository → Prisma → Postgres
+        (DTOs)      (domain,    (queries,
+                     tx, audit)  entity→DTO)
 ```
 
-You can enforce that the TypeScript project references are always in the correct state when running in CI by adding a step to your CI job configuration that runs the following command:
+- **Controller** - (de)serializes DTOs, derives the actor, declares expected errors with `@Throws`. No logic.
+- **Service** - owns the domain: BMI derivation, the per-unit plausibility rule, the transaction boundary, and the audit write (same transaction as the mutation).
+- **Repository** - the only place that knows Prisma. Builds queries, maps `Decimal`/`Date` entities to the plain `ParticipantView` DTO, and translates DB errors (unique violation → domain error).
+- **contracts** - pure functions (`computeBmi`, `classifyBmi`, `convertMeasurements`, `measurementErrors`) and types shared by API + web.
 
-```sh
-npx nx sync:check
+---
+
+## Data model
+
+`users 1-1 profiles` (PII) and `users 1-1 participants` (measurements). Current-state model: one participant row per user, edited in place.
+
+| table | notable columns |
+|---|---|
+| `users` | id, timestamps, `deleted_at` |
+| `profiles` | user_id, first/last name, email, phone, `deleted_at` |
+| `participants` | user_id, weight, height, `unit` (US\|METRIC), `bmi_value`, age, `deleted_at` |
+| `audit_log` | actor, action, entity, entity_id, before, after (append-only) |
+
+- **BMI**: `US = 703·lb/in²`, `METRIC = kg/m²` (height entered in cm). Computed server-side, stored to 2dp, **recomputed on every update**, displayed to 1dp. WHO bands: `<18.5` under · `<25` normal · `<30` over · `≥30` obese; `null` under age 18 (no pediatric curves).
+- **Soft-delete only**: nothing is ever hard-deleted. A **partial unique index** (`profiles.email WHERE deleted_at IS NULL`) enforces one active email while still allowing a deleted email to be re-registered.
+
+### Endpoints
+
+| method | path | notes |
+|---|---|---|
+| `POST` | `/api/participants` | creates user+profile+participant in one tx; duplicate email → `409` |
+| `GET` | `/api/participants` | filter (`search`, `unit`, `minBmi`/`maxBmi`, `minAge`/`maxAge`), `sortBy`/`sortDir`, `page`/`pageSize` |
+| `GET` | `/api/participants/:id` | `404` if missing/deleted |
+| `PUT` | `/api/participants/:id` | partial update; recomputes BMI on a measurement change |
+| `DELETE` | `/api/participants/:id` | soft-delete (`204`) |
+| `GET` | `/api/health` | liveness |
+
+Every error returns one envelope: `{ statusCode, code, message, details?, timestamp, path }`, with a stable machine `code`.
+
+---
+
+## Testing
+
+```bash
+npm run db:up      # the api tests include repository integration tests (real Postgres)
+npm run verify     # typecheck + lint + test (all projects)
+npm run test       # tests only
+npm run e2e        # API HTTP e2e (needs: db up + `npm run dev:api` running)
 ```
 
-[Learn more about nx sync](https://nx.dev/reference/nx-commands#sync)
+**136 tests.** Coverage is collected on every `nx test` and enforced via `coverageThreshold`, so a drop below the bar fails the build (and the pre-commit):
 
-## Nx Cloud
+| project | statements | branches | functions | lines |
+|---|---|---|---|---|
+| contracts | 99% | 100% | 97% | 99% |
+| api | 97% | 75%\* | 97% | 99% |
+| web | 96% | 89% | 91% | 98% |
 
-Nx Cloud ensures a [fast and scalable CI](https://nx.dev/nx-cloud?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) pipeline. It includes features such as:
+\* API branch % is lower because Nest/Swagger method decorators generate branch points that can't be meaningfully exercised; the logic layers (service, filter, repository) are ~100%.
 
-- [Remote caching](https://nx.dev/docs/features/ci-features/remote-cache?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-- [Task distribution across multiple machines](https://nx.dev/docs/features/ci-features/distribute-task-execution?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-- [Automated e2e test splitting](https://nx.dev/docs/features/ci-features/split-e2e-tasks?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-- [Task flakiness detection and rerunning](https://nx.dev/docs/features/ci-features/flaky-tasks?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
+- **contracts** - BMI formulas (checked against the brief's own examples), bands, conversions, bounds.
+- **api** - service domain logic, exception filter, controller, DTO validation, audit, `@Exists`; plus **repository + Prisma integration tests against the real Postgres** (they `TRUNCATE` between tests, so point them at a throwaway DB - the dev DB is fine).
+- **web** - form model, API client, and the React components (form, table, filters) via Testing Library, plus the page orchestration.
+- **api-e2e** - full HTTP path against a running server: create → duplicate 409 → validation 400 → update recompute → search → soft-delete 404.
 
-### Set up CI (non-Github Actions CI)
+A **Husky pre-commit** hook formats staged files and runs `nx affected -t typecheck lint test` (so the coverage gate runs on every commit; the DB must be up).
 
-**Note:** This is only required if your CI provider is not GitHub Actions.
+---
 
-Use the following command to configure a CI workflow for your workspace:
+## Key decisions & alternatives considered
 
-```sh
-npx nx g ci-workflow
-```
+**Where is input validated?** In two layers, on purpose. *Structural* validation (types, format, presence, generic ranges) happens at the DTO boundary with **class-validator** + a global `ValidationPipe` (`whitelist` + `forbidNonWhitelisted` strip/reject unknown fields - defence against over-posting). *Domain* rules that class-validator can't express cleanly (per-unit plausibility bounds, a cross-field rule) live in the service and reuse the shared `measurementErrors()` so the web and API agree.
 
-[Learn more about Nx on CI](https://nx.dev/docs/features/ci-features?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
+**How is user input handled safely?** Prisma parameterises every query (no string-built SQL). DTO whitelisting drops unexpected fields. PII is redacted from logs (`pino` redact) and never leaves the repository unmapped. Ids are validated as UUIDs (`ParseUUIDPipe`).
 
-## Install Nx Console
+**Error handling.** A single `AppException` base carries a stable `code` + HTTP status; a global filter converts everything (domain errors, Nest `HttpException`, unknown bugs) into one envelope and guarantees no stack/PII leaks. `@Throws(...)` on controllers declares expected errors and feeds OpenAPI, so the docs can't drift from the code.
 
-Nx Console is an editor extension that enriches your developer experience. It lets you run tasks, generate code, and improves code autocompletion in your IDE. It is available for VSCode and IntelliJ.
+**BMI as stored vs computed.** Stored (and recomputed on every write) from server-side inputs, so the table/export never recomputes and the value can't drift from weight/height. Classification is done on the raw value; rounding is display-only.
 
-[Install Nx Console &raquo;](https://nx.dev/docs/getting-started/editor-setup?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
+**Pagination.** Offset pagination - simple, addressable pages with a total count, which is what a human-browsed table wants. Keyset pagination would scale better and is the natural next step if the dataset grows large.
 
-## 🔗 Learn More
+**Soft-delete.** Enforced per-query with an explicit `deleted_at IS NULL` filter (clear and greppable). A global Prisma Client Extension would centralise it further; it was left out to keep the data access obvious to read.
 
-- [Nx Documentation](https://nx.dev/docs)
-- [Crafting Your Workspace Tutorial](https://nx.dev/docs/getting-started/tutorials/crafting-your-workspace)
-- [Module Boundaries](https://nx.dev/docs/features/enforce-module-boundaries)
-- [Releasing Packages](https://nx.dev/docs/features/manage-releases)
-- [Nx Plugins](https://nx.dev/docs/concepts/nx-plugins)
-- [Nx Cloud](https://nx.dev/nx-cloud)
+**Auditability.** An app-level, append-only `audit_log` written in the **same transaction** as each mutation (actor + before/after). It intentionally keeps real values (PII) and is exempt from log redaction and soft-delete. DB-trigger history would be tamper-proof against raw SQL - a good hardening step.
 
-## 💬 Community
+**Why `age` as an integer?** It matches the given schema. Date-of-birth (deriving age at read) is the clinically correct choice and would be the first schema change I'd propose.
 
-Join the Nx community:
+### Deliberately out of scope (and how I'd add them)
 
-- [Discord](https://go.nx.dev/community)
-- [X (Twitter)](https://twitter.com/nxdevtools)
-- [LinkedIn](https://www.linkedin.com/company/nrwl)
-- [YouTube](https://www.youtube.com/@nxdevtools)
-- [Blog](https://nx.dev/blog)
+Auth/authorization (the `actor` comes from an `x-actor-id` header, defaulting to `anonymous`); consent capture and subject/study IDs; PII/measurement separation for de-identified export; optimistic-concurrency `version` columns; OpenTelemetry tracing; keyset pagination. Each is a small, well-understood addition on top of the current layering.
