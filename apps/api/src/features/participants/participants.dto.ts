@@ -3,6 +3,8 @@ import { BmiBand, Unit } from '@org/contracts';
 import type {
   CreateParticipantInput,
   ListParticipantsQuery,
+  PageInfo,
+  Paginated,
   ParticipantSortField,
   ParticipantView,
   SortDirection,
@@ -55,6 +57,8 @@ export class CreateParticipantDto implements CreateParticipantInput {
   @MaxLength(255)
   email!: string;
 
+  // @IsOptional() skips validation for both undefined and null, so phone keeps
+  // accepting null even under the update DTO's skipNullProperties: false.
   @ApiPropertyOptional({ nullable: true, maxLength: 30 })
   @IsOptional()
   @IsString()
@@ -85,8 +89,15 @@ export class CreateParticipantDto implements CreateParticipantInput {
   age!: number;
 }
 
-/** PUT body - every field optional, same validators applied when present. */
-export class UpdateParticipantDto extends PartialType(CreateParticipantDto) {}
+/**
+ * PUT body - every field optional, same validators applied when present.
+ * skipNullProperties: false so an explicit null on a required field (e.g.
+ * firstName) is validated and rejected (400) instead of reaching Prisma and
+ * blowing up a NOT NULL column (500). phone stays nullable via its @IsOptional.
+ */
+export class UpdateParticipantDto extends PartialType(CreateParticipantDto, {
+  skipNullProperties: false,
+}) {}
 
 /** Allow-listed query contract for GET /participants. */
 export class ListParticipantsQueryDto implements ListParticipantsQuery {
@@ -168,4 +179,25 @@ export class ParticipantDto implements ParticipantView {
   @ApiProperty({ enum: BmiBand, nullable: true }) bmiBand!: BmiBand | null;
   @ApiProperty() createdAt!: string;
   @ApiProperty() updatedAt!: string;
+}
+
+/** Page metadata for the list envelope. */
+export class PageInfoDto implements PageInfo {
+  @ApiProperty() page!: number;
+  @ApiProperty() pageSize!: number;
+  @ApiProperty() total!: number;
+  @ApiProperty() totalPages!: number;
+}
+
+/**
+ * GET /participants response. The list returns this envelope, not a bare array,
+ * so OpenAPI must document { data, pageInfo } (not isArray) or generated clients
+ * break.
+ */
+export class PaginatedParticipantsDto implements Paginated<ParticipantView> {
+  @ApiProperty({ type: ParticipantDto, isArray: true })
+  data!: ParticipantDto[];
+
+  @ApiProperty({ type: PageInfoDto })
+  pageInfo!: PageInfoDto;
 }

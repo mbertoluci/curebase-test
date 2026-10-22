@@ -86,7 +86,9 @@ model Participant {
   weight    Decimal   @map("weight") @db.Decimal(6, 2)
   height    Decimal   @map("height") @db.Decimal(6, 2)
   unit      Unit      @map("unit")
-  bmiValue  Decimal   @map("bmi_value") @db.Decimal(5, 2)
+  // Decimal(6,2): the plausibility bounds admit valid-but-extreme pairs (e.g.
+  // 500 kg / 50 cm) whose BMI exceeds 999.99, which Decimal(5,2) could not hold.
+  bmiValue  Decimal   @map("bmi_value") @db.Decimal(6, 2)
   age       Int       @map("age")
   createdAt DateTime  @default(now()) @map("created_at")
   updatedAt DateTime  @updatedAt @map("updated_at")

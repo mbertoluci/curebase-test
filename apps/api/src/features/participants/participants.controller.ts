@@ -18,6 +18,7 @@ import { Throws } from '../../common/errors/throws.decorator';
 import {
   CreateParticipantDto,
   ListParticipantsQueryDto,
+  PaginatedParticipantsDto,
   ParticipantDto,
   UpdateParticipantDto,
 } from './participants.dto';
@@ -49,7 +50,7 @@ export class ParticipantsController {
   }
 
   @Get()
-  @ApiOkResponse({ type: ParticipantDto, isArray: true })
+  @ApiOkResponse({ type: PaginatedParticipantsDto })
   list(
     @Query() query: ListParticipantsQueryDto,
   ): Promise<Paginated<ParticipantView>> {

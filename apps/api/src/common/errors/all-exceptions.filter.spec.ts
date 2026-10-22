@@ -69,16 +69,20 @@ describe('AllExceptionsFilter', () => {
     expect(body.message).toBe('nope');
   });
 
-  it('maps a 404 HttpException code via the status map', () => {
+  it('gives a generic 404 HttpException a generic HTTP_404 code, not a feature code', () => {
+    // The filter is cross-cutting: it must not assume a bare 404 means a
+    // participant. Domain codes come only from AppExceptions (branch 1).
     const body = run(new HttpException('gone', HttpStatus.NOT_FOUND));
-    expect(body.code).toBe(ErrorCode.PARTICIPANT_NOT_FOUND);
+    expect(body.code).toBe('HTTP_404');
+    expect(body.code).not.toBe(ErrorCode.PARTICIPANT_NOT_FOUND);
   });
 
-  it('maps a 409 HttpException code via the status map', () => {
+  it('gives a generic 409 HttpException a generic HTTP_409 code, not a feature code', () => {
     const body = run(
       new HttpException({ message: 'dupe' }, HttpStatus.CONFLICT),
     );
-    expect(body.code).toBe(ErrorCode.EMAIL_ALREADY_EXISTS);
+    expect(body.code).toBe('HTTP_409');
+    expect(body.code).not.toBe(ErrorCode.EMAIL_ALREADY_EXISTS);
     expect(body.message).toBe('dupe');
   });
 

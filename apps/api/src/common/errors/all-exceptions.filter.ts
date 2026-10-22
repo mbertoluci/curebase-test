@@ -65,9 +65,11 @@ export class AllExceptionsFilter implements ExceptionFilter {
       const isValidation = status === HttpStatus.BAD_REQUEST;
       return {
         statusCode: status,
-        code: isValidation
-          ? ErrorCode.VALIDATION_FAILED
-          : this.codeForStatus(status),
+        // A generic HTTP code only. Domain codes (PARTICIPANT_NOT_FOUND,
+        // EMAIL_ALREADY_EXISTS, ...) belong to the AppExceptions handled above;
+        // this cross-cutting filter must not guess a feature's meaning from a
+        // bare status, or an unrelated 404 would be mislabelled.
+        code: isValidation ? ErrorCode.VALIDATION_FAILED : `HTTP_${status}`,
         message: this.messageFromHttpResponse(res, exception.message),
         details: this.detailsFromHttpResponse(res),
         timestamp,
@@ -101,11 +103,5 @@ export class AllExceptionsFilter implements ExceptionFilter {
     if (typeof res === 'string') return undefined;
     const message = (res as { message?: unknown }).message;
     return Array.isArray(message) ? message : undefined;
-  }
-
-  private codeForStatus(status: number): string {
-    if (status === HttpStatus.NOT_FOUND) return ErrorCode.PARTICIPANT_NOT_FOUND;
-    if (status === HttpStatus.CONFLICT) return ErrorCode.EMAIL_ALREADY_EXISTS;
-    return `HTTP_${status}`;
   }
 }
