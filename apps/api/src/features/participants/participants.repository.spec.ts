@@ -89,6 +89,18 @@ describe('ParticipantsRepository (integration)', () => {
     expect(fetched?.bmiValue).toBeCloseTo(2000, 1);
   });
 
+  it('persists an explicit phone:null update (clears the stored phone)', async () => {
+    // The DTO accepts phone:null; this pins that it survives the nested
+    // profile update and actually lands as SQL NULL, not as an ignored field.
+    const view = await create({ email: 'phone@x.com', phone: '555-0100' });
+    expect(view.phone).toBe('555-0100');
+    await prisma.$transaction((tx) =>
+      repo.updateTx(tx, view.id, { phone: null }),
+    );
+    const fetched = await repo.findById(view.id);
+    expect(fetched?.phone).toBeNull();
+  });
+
   it('rejects a duplicate active email via the partial unique index', async () => {
     await create({ email: 'dupe@x.com' });
     await expect(create({ email: 'dupe@x.com' })).rejects.toBeInstanceOf(

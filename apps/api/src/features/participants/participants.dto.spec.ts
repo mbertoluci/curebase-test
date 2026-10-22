@@ -53,6 +53,16 @@ describe('UpdateParticipantDto', () => {
     expect(props).toContain('firstName');
   });
 
+  it('rejects an explicit null on every other required field too', async () => {
+    // Each field keeps its own validators when present (skipNullProperties:
+    // false), so the guarantee must hold per field, not just for firstName.
+    for (const field of ['lastName', 'email', 'age'] as const) {
+      const dto = plainToInstance(UpdateParticipantDto, { [field]: null });
+      const props = (await validate(dto)).map((e) => e.property);
+      expect(props).toContain(field);
+    }
+  });
+
   it('still accepts an explicit null on the nullable phone field', async () => {
     const dto = plainToInstance(UpdateParticipantDto, { phone: null });
     expect(await validate(dto)).toHaveLength(0);

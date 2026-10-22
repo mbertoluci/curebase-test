@@ -1,3 +1,7 @@
+import {
+  PaginatedParticipantsDto,
+  ParticipantDto,
+} from './participants.dto';
 import { ParticipantsController } from './participants.controller';
 import { ParticipantsService } from './participants.service';
 
@@ -30,6 +34,29 @@ describe('ParticipantsController', () => {
     const query = { page: 2 } as never;
     await controller.list(query);
     expect(service.list).toHaveBeenCalledWith(query);
+  });
+
+  it('documents the list response as the { data, pageInfo } envelope, not a bare array', () => {
+    // A13 pinned at the source: if this regresses to isArray: true (or drops
+    // PaginatedParticipantsDto), generated clients go back to expecting a bare
+    // array while the service returns the envelope.
+    const responses = Reflect.getMetadata(
+      'swagger/apiResponse',
+      ParticipantsController.prototype.list,
+    ) as Record<string, { type?: unknown; isArray?: boolean }>;
+    const ok = responses['200'];
+    expect(ok.isArray).toBeFalsy();
+    expect(ok.type).toBe(PaginatedParticipantsDto);
+  });
+
+  it('documents single-resource responses as ParticipantDto', () => {
+    for (const method of ['findById', 'update'] as const) {
+      const responses = Reflect.getMetadata(
+        'swagger/apiResponse',
+        ParticipantsController.prototype[method],
+      ) as Record<string, { type?: unknown }>;
+      expect(responses['200'].type).toBe(ParticipantDto);
+    }
   });
 
   it('findById delegates the id', async () => {
