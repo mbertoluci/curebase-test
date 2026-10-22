@@ -3,10 +3,31 @@ import {
   convertMeasurements,
   feetInchesToInches,
   inchesToFeetInches,
+  hasMeasurementPrecision,
   measurementErrors,
   MEASUREMENT_BOUNDS,
   Unit,
 } from './units';
+
+describe('measurement precision', () => {
+  it.each([72.24, 70.01, 50, 500])('preserves storable value %s', (value) => {
+    expect(hasMeasurementPrecision(value)).toBe(true);
+  });
+
+  it.each([72.249, 6.246, 50.014, NaN, Infinity])(
+    'rejects value %s',
+    (value) => {
+      expect(hasMeasurementPrecision(value)).toBe(false);
+    },
+  );
+
+  it('rejects precision that would change persisted measurements', () => {
+    expect(measurementErrors(72.249, 170.001, Unit.METRIC, 30)).toEqual([
+      'weight must have at most 2 decimal places',
+      'height must have at most 2 decimal places',
+    ]);
+  });
+});
 
 describe('measurementErrors', () => {
   it('returns no errors for a plausible US measurement', () => {
@@ -68,6 +89,7 @@ describe('height helpers', () => {
   });
 
   it('inchesToFeetInches splits total inches', () => {
+    expect(inchesToFeetInches(70.01)).toEqual({ feet: 5, inches: 10.01 });
     expect(inchesToFeetInches(70)).toEqual({ feet: 5, inches: 10 });
     expect(inchesToFeetInches(54)).toEqual({ feet: 4, inches: 6 });
   });

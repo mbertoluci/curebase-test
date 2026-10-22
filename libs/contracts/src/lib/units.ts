@@ -59,6 +59,11 @@ const round = (value: number, decimals: number): number => {
   return Math.round((value + Number.EPSILON) * factor) / factor;
 };
 
+/** Whether a measurement can be stored at 2dp without changing its value. */
+export function hasMeasurementPrecision(value: number): boolean {
+  return Number.isFinite(value) && round(value, 2) === value;
+}
+
 /**
  * Convert a {weight, height} pair between unit systems, rounding to sensible
  * entry precision (whole cm, 0.1 for everything else) so repeated UI toggles
@@ -109,11 +114,15 @@ export function measurementErrors(
     errors.push(
       `weight must be between ${bounds.weight.min} and ${bounds.weight.max} ${weightUnit}`,
     );
+  } else if (!hasMeasurementPrecision(weight)) {
+    errors.push('weight must have at most 2 decimal places');
   }
   if (!(height >= bounds.height.min && height <= bounds.height.max)) {
     errors.push(
       `height must be between ${bounds.height.min} and ${bounds.height.max} ${heightUnit}`,
     );
+  } else if (!hasMeasurementPrecision(height)) {
+    errors.push('height must have at most 2 decimal places');
   }
   if (!Number.isInteger(age) || age < AGE_BOUNDS.min || age > AGE_BOUNDS.max) {
     errors.push(
@@ -134,5 +143,5 @@ export function inchesToFeetInches(totalInches: number): {
   inches: number;
 } {
   const feet = Math.floor(totalInches / 12);
-  return { feet, inches: round(totalInches - feet * 12, 1) };
+  return { feet, inches: round(totalInches - feet * 12, 2) };
 }

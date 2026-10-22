@@ -114,6 +114,27 @@ describe('ParticipantsRepository (integration)', () => {
     expect(view.bmiValue).toBe(25);
     expect(view.bmiBand).toBe('NORMAL');
     expect((await repo.findById(view.id))?.bmiBand).toBe('NORMAL');
+    // Numeric filtering deliberately uses the stored BMI, not category membership.
+    const page = await repo.list(
+      { minBmi: 25 },
+      { field: 'bmiValue', direction: 'asc' },
+      { page: 1, pageSize: 25 },
+    );
+    expect(page.data.map((p) => p.id)).toContain(view.id);
+
+    const overweight = await create({
+      weight: 72.25,
+      height: 170,
+      unit: Unit.METRIC,
+      age: 30,
+    });
+    expect(overweight.bmiBand).toBe('OVERWEIGHT');
+    const filtered = await repo.list(
+      { minBmi: 25 },
+      { field: 'bmiValue', direction: 'asc' },
+      { page: 1, pageSize: 25 },
+    );
+    expect(filtered.data.map((p) => p.id)).toContain(overweight.id);
   });
 
   it('rejects a duplicate active email via the partial unique index', async () => {

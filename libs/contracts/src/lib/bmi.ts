@@ -64,8 +64,9 @@ export function classifyBmi(bmi: number, age: number): BmiBand | null {
 /**
  * Classify straight from measurements, on the unrounded BMI. This is the single
  * rule both the API (deriving the band on read) and the web preview call, so a
- * display/storage rounding can never flip the band and the three consumers can
- * never disagree. The stored 2-decimal bmiValue is for display and filtering,
+ * BMI rounding cannot flip the band. Callers validate measurement precision
+ * before persistence/preview so both use the same inputs. The stored 2-decimal
+ * bmiValue is for display and filtering,
  * never for classification.
  */
 export function classifyMeasurements(

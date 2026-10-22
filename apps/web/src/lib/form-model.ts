@@ -6,6 +6,7 @@ import {
   CreateParticipantInput,
   feetInchesToInches,
   inchesToFeetInches,
+  hasMeasurementPrecision,
   measurementErrors,
   ParticipantView,
   roundBmi,
@@ -83,7 +84,13 @@ export function livePreview(
   const weight = num(values.weight);
   const height = heightValue(values);
   const age = num(values.age);
-  if (!(weight > 0) || !(height > 0)) return null;
+  if (
+    !(weight > 0) ||
+    !(height > 0) ||
+    !hasMeasurementPrecision(weight) ||
+    !hasMeasurementPrecision(height)
+  )
+    return null;
   // Display the rounded BMI, but classify on the unrounded value via the shared
   // rule - the same the API uses on read, so the preview band never disagrees
   // with the stored record.

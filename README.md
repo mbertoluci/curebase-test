@@ -143,3 +143,7 @@ A **Husky pre-commit** hook formats staged files and runs `nx affected -t typech
 ### Deliberately out of scope (and how I'd add them)
 
 Auth/authorization (the `actor` comes from an `x-actor-id` header, defaulting to `anonymous`); consent capture and subject/study IDs; PII/measurement separation for de-identified export; optimistic-concurrency `version` columns; OpenTelemetry tracing; keyset pagination. Each is a small, well-understood addition on top of the current layering.
+
+### Measurement precision and BMI filters
+
+Weight and total height accept at most two decimal places, matching their database precision. Excess precision is rejected in both API writes and form validation, rather than silently changing measurements on save. Classification uses the unrounded BMI derived from these measurements; `bmiValue` remains rounded to two decimals for storage and numeric filtering (the UI displays one decimal). Thus `minBmi=25` can include a NORMAL record whose raw BMI is 24.9965 but stored value is 25.00. This is a numeric filter, not a category filter. Existing records written before this precision rule may need reconciliation if their stored BMI was calculated from higher-precision inputs.
