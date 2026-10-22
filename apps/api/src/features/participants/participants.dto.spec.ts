@@ -3,6 +3,7 @@ import { validate } from 'class-validator';
 import {
   CreateParticipantDto,
   ListParticipantsQueryDto,
+  UpdateParticipantDto,
 } from './participants.dto';
 
 describe('CreateParticipantDto', () => {
@@ -36,6 +37,25 @@ describe('CreateParticipantDto', () => {
     expect(props).toEqual(
       expect.arrayContaining(['firstName', 'email', 'unit', 'age']),
     );
+  });
+});
+
+describe('UpdateParticipantDto', () => {
+  it('accepts a partial patch of only some fields', async () => {
+    const dto = plainToInstance(UpdateParticipantDto, { weight: '90' });
+    expect(await validate(dto)).toHaveLength(0);
+    expect(dto.weight).toBe(90);
+  });
+
+  it('rejects an explicit null on a required field (never reaches Prisma)', async () => {
+    const dto = plainToInstance(UpdateParticipantDto, { firstName: null });
+    const props = (await validate(dto)).map((e) => e.property);
+    expect(props).toContain('firstName');
+  });
+
+  it('still accepts an explicit null on the nullable phone field', async () => {
+    const dto = plainToInstance(UpdateParticipantDto, { phone: null });
+    expect(await validate(dto)).toHaveLength(0);
   });
 });
 

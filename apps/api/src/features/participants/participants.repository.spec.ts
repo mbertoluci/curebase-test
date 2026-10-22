@@ -74,6 +74,21 @@ describe('ParticipantsRepository (integration)', () => {
     expect(fetched).toEqual(view);
   });
 
+  it('stores a valid-but-extreme BMI that would overflow Decimal(5,2)', async () => {
+    // 500 kg / 50 cm are each within the plausibility bounds; their BMI is 2000,
+    // which needs Decimal(6,2). This used to overflow and 500 at write time.
+    const view = await create({
+      email: 'extreme@x.com',
+      weight: 500,
+      height: 50,
+      unit: Unit.METRIC,
+      age: 30,
+    });
+    expect(view.bmiValue).toBeCloseTo(2000, 1);
+    const fetched = await repo.findById(view.id);
+    expect(fetched?.bmiValue).toBeCloseTo(2000, 1);
+  });
+
   it('rejects a duplicate active email via the partial unique index', async () => {
     await create({ email: 'dupe@x.com' });
     await expect(create({ email: 'dupe@x.com' })).rejects.toBeInstanceOf(
