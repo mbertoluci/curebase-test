@@ -86,6 +86,15 @@ describe('AllExceptionsFilter', () => {
     expect(body.message).toBe('dupe');
   });
 
+  it('strips the query string from the reported path (keeps PII out)', () => {
+    const body = run(
+      new ParticipantNotFoundError('x'),
+      '/api/participants?search=ada@example.com',
+    );
+    expect(body.path).toBe('/api/participants');
+    expect(JSON.stringify(body)).not.toContain('ada@example.com');
+  });
+
   it('hides unexpected errors behind a generic 500', () => {
     const body = run(new Error('secret stack detail'));
     expect(status).toHaveBeenCalledWith(HttpStatus.INTERNAL_SERVER_ERROR);

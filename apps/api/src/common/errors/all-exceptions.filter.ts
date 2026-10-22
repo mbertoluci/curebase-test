@@ -26,17 +26,21 @@ export class AllExceptionsFilter implements ExceptionFilter {
     const response = ctx.getResponse<Response>();
     const request = ctx.getRequest<Request>();
 
-    const body = this.toErrorBody(exception, request.url);
+    // Log and report the path WITHOUT the query string: filters like
+    // ?search=<email> would otherwise write PII into the logs and echo it back
+    // in the error envelope.
+    const path = request.url.split('?')[0];
+    const body = this.toErrorBody(exception, path);
 
     if (body.statusCode >= HttpStatus.INTERNAL_SERVER_ERROR) {
       // Log the real error server-side; the client only gets the safe envelope.
       this.logger.error(
-        `${request.method} ${request.url} -> ${body.statusCode}`,
+        `${request.method} ${path} -> ${body.statusCode}`,
         exception instanceof Error ? exception.stack : String(exception),
       );
     } else {
       this.logger.debug(
-        `${request.method} ${request.url} -> ${body.statusCode} (${body.code})`,
+        `${request.method} ${path} -> ${body.statusCode} (${body.code})`,
       );
     }
 

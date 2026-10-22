@@ -21,7 +21,19 @@ const isProduction = process.env.NODE_ENV === 'production';
     LoggerModule.forRoot({
       pinoHttp: {
         level: process.env.LOG_LEVEL ?? 'info',
-        // Never let request headers that may carry secrets reach the logs.
+        // Log only id + method + path for each request. The default serializer
+        // would log the full URL (query strings carry PII like ?search=<email>)
+        // and all request headers; this keeps PII out of the logs at the source.
+        serializers: {
+          req(req: { id?: unknown; method?: string; url?: string }) {
+            return {
+              id: req.id,
+              method: req.method,
+              url: typeof req.url === 'string' ? req.url.split('?')[0] : req.url,
+            };
+          },
+        },
+        // Defence in depth in case any other log path touches these headers.
         redact: ['req.headers.authorization', 'req.headers.cookie'],
         transport: isProduction
           ? undefined
