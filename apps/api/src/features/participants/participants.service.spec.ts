@@ -85,6 +85,15 @@ describe('ParticipantsService', () => {
   });
 
   describe('create', () => {
+    it.each([{ weight: 72.249 }, { height: 170.001 }])(
+      'rejects excess precision %j before writing',
+      async (patch) => {
+        await expect(
+          service.create({ ...validInput, ...patch }, 'tester'),
+        ).rejects.toBeInstanceOf(InputValidationError);
+        expect(repository.createTx).not.toHaveBeenCalled();
+      },
+    );
     it('derives and stores BMI (metric) and writes a CREATE audit row', async () => {
       await service.create(validInput, 'tester');
 
@@ -109,6 +118,13 @@ describe('ParticipantsService', () => {
   });
 
   describe('update', () => {
+    it('rejects excess precision in a partial update', async () => {
+      repository.findByIdTx.mockResolvedValue(view());
+      await expect(
+        service.update('p1', { weight: 72.249 }, 'editor'),
+      ).rejects.toBeInstanceOf(InputValidationError);
+      expect(repository.updateTx).not.toHaveBeenCalled();
+    });
     it('recomputes BMI when a measurement changes', async () => {
       repository.findByIdTx.mockResolvedValue(view());
       await service.update('p1', { weight: 80 }, 'editor');

@@ -56,6 +56,51 @@ describe('form-model', () => {
   });
 
   describe('livePreview', () => {
+    it('keeps the raw band when the displayed BMI rounds to 25', () => {
+      expect(
+        livePreview({
+          ...usForm,
+          unit: Unit.METRIC,
+          weight: '72.24',
+          heightCm: '170',
+        }),
+      ).toEqual({ bmi: 25, band: BmiBand.NORMAL });
+    });
+
+    it('rejects excess precision instead of previewing a band that changes on save', () => {
+      const values = {
+        ...usForm,
+        unit: Unit.METRIC,
+        weight: '72.249',
+        heightCm: '170',
+      };
+      expect(livePreview(values)).toBeNull();
+      expect(validate(values).errors.weight).toMatch(/2 decimal places/);
+      expect(
+        livePreview({ ...values, weight: '72.24', heightCm: '170.001' }),
+      ).toBeNull();
+    });
+
+    it('preserves stored US height precision when reopening a participant', () => {
+      const view = {
+        id: 'p1',
+        firstName: 'A',
+        lastName: 'B',
+        email: 'a@x.com',
+        phone: null,
+        weight: 174.3,
+        height: 70.01,
+        unit: Unit.US,
+        age: 30,
+        bmiValue: 25,
+        bmiBand: BmiBand.NORMAL,
+        createdAt: '',
+        updatedAt: '',
+      };
+      const values = fromView(view);
+      expect(validate(values).input?.height).toBe(70.01);
+      expect(livePreview(values)?.band).toBe(BmiBand.NORMAL);
+    });
     it('computes BMI and band from the current values', () => {
       const preview = livePreview(usForm);
       expect(preview?.bmi).toBeCloseTo(20.5, 1);
@@ -147,7 +192,11 @@ describe('form-model', () => {
   describe('validate (form-level error)', () => {
     it('routes an invalid-unit domain error to errors.form', () => {
       // Finite weight/height/age so validation reaches the domain rule, with a bad unit.
-      const errors = validate({ ...usForm, unit: 'XX' as Unit, heightCm: '175' }).errors;
+      const errors = validate({
+        ...usForm,
+        unit: 'XX' as Unit,
+        heightCm: '175',
+      }).errors;
       expect(errors.form).toBeDefined();
     });
   });
