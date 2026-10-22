@@ -20,6 +20,9 @@
           "cwd": "apps/api-e2e"
         }
       }
-    }
+    },
+    "tags": [
+      "scope:app"
+    ]
   }
 }
