@@ -61,6 +61,22 @@ export function classifyBmi(bmi: number, age: number): BmiBand | null {
   return BmiBand.OBESE;
 }
 
+/**
+ * Classify straight from measurements, on the unrounded BMI. This is the single
+ * rule both the API (deriving the band on read) and the web preview call, so a
+ * display/storage rounding can never flip the band and the three consumers can
+ * never disagree. The stored 2-decimal bmiValue is for display and filtering,
+ * never for classification.
+ */
+export function classifyMeasurements(
+  weight: number,
+  height: number,
+  unit: Unit,
+  age: number,
+): BmiBand | null {
+  return classifyBmi(computeBmi(weight, height, unit), age);
+}
+
 /** Human-readable label for a band (used by the UI). */
 export const BMI_BAND_LABELS: Record<BmiBand, string> = {
   [BmiBand.UNDERWEIGHT]: 'Underweight',

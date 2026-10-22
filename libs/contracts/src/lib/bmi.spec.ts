@@ -1,4 +1,10 @@
-import { BmiBand, classifyBmi, computeBmi, roundBmi } from './bmi';
+import {
+  BmiBand,
+  classifyBmi,
+  classifyMeasurements,
+  computeBmi,
+  roundBmi,
+} from './bmi';
 import { convertMeasurements, Unit } from './units';
 
 describe('computeBmi', () => {
@@ -38,6 +44,23 @@ describe('classifyBmi', () => {
   it('returns null below the adult age threshold (no pediatric bands)', () => {
     expect(classifyBmi(22, 17)).toBeNull();
     expect(classifyBmi(22, 18)).toBe(BmiBand.NORMAL);
+  });
+});
+
+describe('classifyMeasurements', () => {
+  it('classifies on the unrounded BMI, so a boundary rounding cannot flip the band', () => {
+    // 72.24 kg / 170 cm -> BMI 24.9965: NORMAL. It rounds to 25.00, which
+    // classifyBmi on the rounded value would wrongly call OVERWEIGHT; the band
+    // must follow the raw value.
+    expect(roundBmi(computeBmi(72.24, 170, Unit.METRIC), 2)).toBe(25);
+    expect(classifyBmi(25, 30)).toBe(BmiBand.OVERWEIGHT);
+    expect(classifyMeasurements(72.24, 170, Unit.METRIC, 30)).toBe(
+      BmiBand.NORMAL,
+    );
+  });
+
+  it('inherits the null-under-18 rule', () => {
+    expect(classifyMeasurements(72.24, 170, Unit.METRIC, 17)).toBeNull();
   });
 });
 
