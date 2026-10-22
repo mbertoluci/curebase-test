@@ -2,6 +2,11 @@
   "name": "@org/contracts",
   "version": "0.0.1",
   "private": true,
+  "nx": {
+    "tags": [
+      "scope:shared"
+    ]
+  },
   "main": "./src/index.ts",
   "types": "./src/index.ts",
   "exports": {

@@ -3,9 +3,13 @@
   "version": "0.0.1",
   "private": true,
   "nx": {
-    "sourceRoot": "apps/web/src"
+    "sourceRoot": "apps/web/src",
+    "tags": [
+      "scope:app"
+    ]
   },
   "dependencies": {
+    "@org/contracts": "*",
     "next": "~16.1.6",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"

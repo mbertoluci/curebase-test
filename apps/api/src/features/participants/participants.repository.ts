@@ -64,6 +64,9 @@ export class ParticipantsRepository {
   ): Promise<{ data: ParticipantView[]; total: number }> {
     const where = this.buildWhere(filter);
     const orderBy = this.buildOrderBy(sort);
+    // Local read-only transaction: page rows and total count must come from one
+    // consistent snapshot. This is the one transaction the service does not own,
+    // because it carries no mutation and no audit (see service tx boundary).
     const [rows, total] = await this.prisma.$transaction([
       this.participants.findMany({
         where,

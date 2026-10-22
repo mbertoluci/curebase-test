@@ -16,9 +16,15 @@ export default [
           enforceBuildableLibDependency: true,
           allow: ['^.*/eslint(\\.base)?\\.config\\.[cm]?[jt]s$'],
           depConstraints: [
+            // Apps consume the shared domain lib, never each other.
             {
-              sourceTag: '*',
-              onlyDependOnLibsWithTags: ['*'],
+              sourceTag: 'scope:app',
+              onlyDependOnLibsWithTags: ['scope:shared'],
+            },
+            // The shared lib stays framework-free: it may only depend on shared code.
+            {
+              sourceTag: 'scope:shared',
+              onlyDependOnLibsWithTags: ['scope:shared'],
             },
           ],
         },

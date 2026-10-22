@@ -9,6 +9,10 @@ import { DatabaseModule } from '../database/database.module';
 import { ParticipantsModule } from '../features/participants/participants.module';
 import { AppController } from './app.controller';
 
+// Read at module-evaluation time, before Nest's DI container exists, so this
+// and the bootstrap reads in main.ts use process.env directly rather than
+// ConfigService. ConfigModule below owns a single concern: loading the .env
+// file into process.env (notably in production, where nothing else does).
 const isProduction = process.env.NODE_ENV === 'production';
 
 @Module({
