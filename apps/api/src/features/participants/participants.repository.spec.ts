@@ -8,26 +8,49 @@ import { CreateParticipantData } from './participants.type';
  * Integration tests - they run against the real Postgres (docker-compose).
  * Prereq: `npm run db:up && npm run db:migrate`. The suite TRUNCATEs the tables
  * between tests, so point it at a throwaway database (the dev DB is fine).
- * assertLocalTestDatabase() below refuses to run against a non-local host, so a
- * misconfigured DATABASE_URL (staging/prod) can never be wiped - notably by the
- * pre-commit hook, which runs this suite.
+ * assertLocalTestDatabase() blocks directly configured non-local hosts. It
+ * cannot distinguish a local database from a tunnel to a remote database.
  */
-function assertLocalTestDatabase(): void {
+function assertLocalTestDatabase(databaseUrl = process.env.DATABASE_URL): void {
   let host: string;
   try {
-    host = new URL(process.env.DATABASE_URL ?? '').hostname;
+    host = new URL(databaseUrl ?? '').hostname;
   } catch {
     throw new Error(
       'DATABASE_URL is unset or invalid; refusing to run destructive tests.',
     );
   }
-  if (!['localhost', '127.0.0.1', '::1'].includes(host)) {
+  if (!['localhost', '127.0.0.1', '[::1]'].includes(host)) {
     throw new Error(
       `Refusing to TRUNCATE against non-local host "${host}". ` +
         'Point DATABASE_URL at a local throwaway database.',
     );
   }
 }
+
+describe('destructive-test database guard', () => {
+  it.each(['localhost', '127.0.0.1', '[::1]'])(
+    'allows local host %s',
+    (host) => {
+      expect(() =>
+        assertLocalTestDatabase(`postgresql://user:pass@${host}:5433/test`),
+      ).not.toThrow();
+    },
+  );
+
+  it.each(['db.example.com', '192.0.2.1', 'localhost.example.com'])(
+    'blocks remote host %s',
+    (host) => {
+      expect(() =>
+        assertLocalTestDatabase(`postgresql://user:pass@${host}:5433/test`),
+      ).toThrow(/non-local host/);
+    },
+  );
+
+  it.each(['', 'not-a-url'])('blocks missing or malformed URL %j', (url) => {
+    expect(() => assertLocalTestDatabase(url)).toThrow(/unset or invalid/);
+  });
+});
 
 describe('ParticipantsRepository (integration)', () => {
   const prisma = new PrismaService();

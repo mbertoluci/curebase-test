@@ -4,6 +4,7 @@ import {
   ForbiddenException,
   HttpException,
   HttpStatus,
+  NotFoundException,
 } from '@nestjs/common';
 import { ErrorCode } from '@org/contracts';
 import {
@@ -93,6 +94,18 @@ describe('AllExceptionsFilter', () => {
     );
     expect(body.path).toBe('/api/participants');
     expect(JSON.stringify(body)).not.toContain('ada@example.com');
+  });
+
+  it('removes the query from the default Nest 404 message as well as the path', () => {
+    const url = '/api/missing?search=ada%40example.com';
+    const body = run(new NotFoundException(`Cannot GET ${url}`), url, 'GET');
+    expect(body).toMatchObject({
+      code: 'HTTP_404',
+      path: '/api/missing',
+      message: 'Cannot GET /api/missing',
+    });
+    expect(JSON.stringify(body)).not.toContain('ada');
+    expect(JSON.stringify(body)).not.toContain('search');
   });
 
   it('hides unexpected errors behind a generic 500', () => {

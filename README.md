@@ -103,7 +103,7 @@ npm run test       # tests only
 npm run e2e        # API HTTP e2e (needs: db up + `npm run dev:api` running)
 ```
 
-Coverage is collected on every `nx test` and enforced via `coverageThreshold`, so a drop below the bar fails the build (and the pre-commit). The table below is the **enforced gate**, not the latest run - actuals currently sit comfortably above every number here:
+Coverage is collected on every `nx test` and enforced via `coverageThreshold`, so a drop below the bar fails the build (and the pre-commit). The table below is the **enforced gate**, not the latest measured coverage:
 
 | project | statements | branches | functions | lines |
 |---|---|---|---|---|
@@ -111,10 +111,10 @@ Coverage is collected on every `nx test` and enforced via `coverageThreshold`, s
 | api | 92% | 70%\* | 92% | 94% |
 | web | 93% | 85% | 88% | 94% |
 
-\* The api **global** branch gate is 70% because Nest/Swagger method decorators generate branch points that can't be meaningfully exercised; the logic layers are gated far higher - the service carries its own per-path threshold of 100% statements/functions/lines and 80% branches.
+\* The api **global** branch gate is 70% because Nest/Swagger method decorators generate branch points that can't be meaningfully exercised; the service additionally carries its own per-path threshold of 100% statements/functions/lines and 80% branches.
 
 - **contracts** - BMI formulas (checked against the brief's own examples), bands, conversions, bounds.
-- **api** - service domain logic, exception filter, controller, DTO validation, audit, `@Exists`; plus **repository + Prisma integration tests against the real Postgres** (they `TRUNCATE` between tests and refuse to run against a non-local host, so point them at a local throwaway DB - the dev DB is fine).
+- **api** - service domain logic, exception filter, controller, DTO validation, audit, `@Exists`; plus **repository + Prisma integration tests against the real Postgres** (they `TRUNCATE` between tests and refuse to run against a non-local host, so point them at a local throwaway DB. The host guard does not detect local tunnels or distinguish a disposable database from other local databases).
 - **web** - form model, API client, and the React components (form, table, filters) via Testing Library, plus the page orchestration.
 - **api-e2e** - full HTTP path against a running server: create → duplicate 409 → validation 400 → update recompute → search → soft-delete 404.
 
