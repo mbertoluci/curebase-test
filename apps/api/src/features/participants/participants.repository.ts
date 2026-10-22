@@ -64,9 +64,9 @@ export class ParticipantsRepository {
   ): Promise<{ data: ParticipantView[]; total: number }> {
     const where = this.buildWhere(filter);
     const orderBy = this.buildOrderBy(sort);
-    // Local read-only transaction: page rows and total count must come from one
-    // consistent snapshot. This is the one transaction the service does not own,
-    // because it carries no mutation and no audit (see service tx boundary).
+    // Local read-only transaction, owned here because it has no mutation/audit.
+    // Isolation follows the database default: under PostgreSQL READ COMMITTED,
+    // rows and count can see different snapshots during concurrent writes.
     const [rows, total] = await this.prisma.$transaction([
       this.participants.findMany({
         where,

@@ -6,7 +6,18 @@
     "sourceRoot": "apps/web/src",
     "tags": [
       "scope:app"
-    ]
+    ],
+    "targets": {
+      "typecheck": {
+        "dependsOn": [
+          "^build"
+        ],
+        "command": "tsc --project tsconfig.spec.json --noEmit",
+        "options": {
+          "cwd": "apps/web"
+        }
+      }
+    }
   },
   "dependencies": {
     "@org/contracts": "*",

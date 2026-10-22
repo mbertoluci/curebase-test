@@ -9,10 +9,10 @@ import { DatabaseModule } from '../database/database.module';
 import { ParticipantsModule } from '../features/participants/participants.module';
 import { AppController } from './app.controller';
 
-// Read at module-evaluation time, before Nest's DI container exists, so this
-// and the bootstrap reads in main.ts use process.env directly rather than
-// ConfigService. ConfigModule below owns a single concern: loading the .env
-// file into process.env (notably in production, where nothing else does).
+// NODE_ENV is read before ConfigModule.forRoot loads .env, so the launcher
+// must set it. ConfigModule loads the remaining .env values into process.env;
+// LoggerModule below and bootstrap in main.ts read them directly. This app
+// uses ConfigModule for env loading, not ConfigService-based configuration.
 const isProduction = process.env.NODE_ENV === 'production';
 
 @Module({
