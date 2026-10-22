@@ -103,18 +103,18 @@ npm run test       # tests only
 npm run e2e        # API HTTP e2e (needs: db up + `npm run dev:api` running)
 ```
 
-**136 tests.** Coverage is collected on every `nx test` and enforced via `coverageThreshold`, so a drop below the bar fails the build (and the pre-commit):
+Coverage is collected on every `nx test` and enforced via `coverageThreshold`, so a drop below the bar fails the build (and the pre-commit). The table below is the **enforced gate**, not the latest run - actuals currently sit comfortably above every number here:
 
 | project | statements | branches | functions | lines |
 |---|---|---|---|---|
-| contracts | 99% | 100% | 97% | 99% |
-| api | 97% | 75%\* | 97% | 99% |
-| web | 96% | 89% | 91% | 98% |
+| contracts | 95% | 90% | 90% | 95% |
+| api | 92% | 70%\* | 92% | 94% |
+| web | 93% | 85% | 88% | 94% |
 
-\* API branch % is lower because Nest/Swagger method decorators generate branch points that can't be meaningfully exercised; the logic layers (service, filter, repository) are ~100%.
+\* The api **global** branch gate is 70% because Nest/Swagger method decorators generate branch points that can't be meaningfully exercised; the logic layers are gated far higher - the service carries its own per-path threshold of 100% statements/functions/lines and 80% branches.
 
 - **contracts** - BMI formulas (checked against the brief's own examples), bands, conversions, bounds.
-- **api** - service domain logic, exception filter, controller, DTO validation, audit, `@Exists`; plus **repository + Prisma integration tests against the real Postgres** (they `TRUNCATE` between tests, so point them at a throwaway DB - the dev DB is fine).
+- **api** - service domain logic, exception filter, controller, DTO validation, audit, `@Exists`; plus **repository + Prisma integration tests against the real Postgres** (they `TRUNCATE` between tests and refuse to run against a non-local host, so point them at a local throwaway DB - the dev DB is fine).
 - **web** - form model, API client, and the React components (form, table, filters) via Testing Library, plus the page orchestration.
 - **api-e2e** - full HTTP path against a running server: create → duplicate 409 → validation 400 → update recompute → search → soft-delete 404.
 
@@ -126,7 +126,7 @@ A **Husky pre-commit** hook formats staged files and runs `nx affected -t typech
 
 **Where is input validated?** In two layers, on purpose. *Structural* validation (types, format, presence, generic ranges) happens at the DTO boundary with **class-validator** + a global `ValidationPipe` (`whitelist` + `forbidNonWhitelisted` strip/reject unknown fields - defence against over-posting). *Domain* rules that class-validator can't express cleanly (per-unit plausibility bounds, a cross-field rule) live in the service and reuse the shared `measurementErrors()` so the web and API agree.
 
-**How is user input handled safely?** Prisma parameterises every query (no string-built SQL). DTO whitelisting drops unexpected fields. PII is redacted from logs (`pino` redact) and never leaves the repository unmapped. Ids are validated as UUIDs (`ParseUUIDPipe`).
+**How is user input handled safely?** Prisma parameterises every query (no string-built SQL). DTO whitelisting drops unexpected fields. Request logs record only the id, method and path - never the query string (which can carry PII like `?search=<email>`) and never request headers; sensitive headers are additionally redacted as defence in depth. Ids are validated as UUIDs (`ParseUUIDPipe`).
 
 **Error handling.** A single `AppException` base carries a stable `code` + HTTP status; a global filter converts everything (domain errors, Nest `HttpException`, unknown bugs) into one envelope and guarantees no stack/PII leaks. `@Throws(...)` on controllers declares expected errors and feeds OpenAPI, so the docs can't drift from the code.
 
