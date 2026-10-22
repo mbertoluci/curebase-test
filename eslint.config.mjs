@@ -21,10 +21,21 @@ export default [
               sourceTag: 'scope:app',
               onlyDependOnLibsWithTags: ['scope:shared'],
             },
-            // The shared lib stays framework-free: it may only depend on shared code.
+            // Shared code may consume shared projects, but not app frameworks/ORMs.
             {
               sourceTag: 'scope:shared',
               onlyDependOnLibsWithTags: ['scope:shared'],
+              bannedExternalImports: [
+                '@nestjs/*',
+                '@prisma/*',
+                'nestjs-pino',
+                'next',
+                'next/*',
+                'react',
+                'react/*',
+                'react-dom',
+                'react-dom/*',
+              ],
             },
           ],
         },

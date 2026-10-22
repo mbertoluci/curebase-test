@@ -115,7 +115,10 @@ describe('ParticipantForm', () => {
     mockApi.create.mockRejectedValue(
       new ApiError(409, 'EMAIL_ALREADY_EXISTS', 'dup'),
     );
-    mockApi.list.mockResolvedValue({ data: [view], pageInfo: {} });
+    mockApi.list.mockResolvedValue({
+      data: [view],
+      pageInfo: { page: 1, pageSize: 1, total: 1, totalPages: 1 },
+    });
     render(<ParticipantForm editing={null} {...h} />);
     fillValidUs();
     fireEvent.click(screen.getByRole('button', { name: /Save participant/ }));
