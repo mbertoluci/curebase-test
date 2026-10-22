@@ -1,0 +1,221 @@
+import { computeBmi, roundBmi, Unit } from '@org/contracts';
+import { PrismaService } from '../../database/prisma.service';
+import { EmailAlreadyExistsError } from './participants.error';
+import { ParticipantsRepository } from './participants.repository';
+import { CreateParticipantData } from './participants.type';
+
+/**
+ * Integration tests - they run against the real Postgres (docker-compose).
+ * Prereq: `npm run db:up && npm run db:migrate`. The suite TRUNCATEs the tables
+ * between tests, so point it at a throwaway database (the dev DB is fine).
+ */
+describe('ParticipantsRepository (integration)', () => {
+  const prisma = new PrismaService();
+  const repo = new ParticipantsRepository(prisma);
+
+  const data = (
+    over: Partial<CreateParticipantData> = {},
+  ): CreateParticipantData => {
+    const weight = over.weight ?? 70;
+    const height = over.height ?? 175;
+    const unit = over.unit ?? Unit.METRIC;
+    const age = over.age ?? 30;
+    return {
+      firstName: 'Ada',
+      lastName: 'Lovelace',
+      email: `ada-${Math.random().toString(36).slice(2)}@example.com`,
+      phone: null,
+      weight,
+      height,
+      unit,
+      age,
+      bmiValue: roundBmi(computeBmi(weight, height, unit), 2),
+      ...over,
+    };
+  };
+
+  const create = (over: Partial<CreateParticipantData> = {}) =>
+    prisma.$transaction((tx) => repo.createTx(tx, data(over)));
+
+  beforeAll(async () => {
+    await prisma.$connect();
+  });
+
+  afterAll(async () => {
+    await prisma.$disconnect();
+  });
+
+  beforeEach(async () => {
+    await prisma.$executeRawUnsafe(
+      'TRUNCATE TABLE "audit_log","participants","profiles","users" RESTART IDENTITY CASCADE',
+    );
+  });
+
+  it('creates the aggregate and maps the entity to a view (Decimal->number, derived band)', async () => {
+    const view = await create({
+      email: 'peter@x.com',
+      weight: 195,
+      height: 70,
+      unit: Unit.US,
+      age: 42,
+    });
+    expect(view).toMatchObject({
+      email: 'peter@x.com',
+      weight: 195,
+      height: 70,
+      unit: Unit.US,
+      age: 42,
+      bmiBand: 'OVERWEIGHT',
+    });
+    expect(view.bmiValue).toBeCloseTo(28, 1);
+    expect(new Date(view.createdAt).toISOString()).toBe(view.createdAt);
+
+    const fetched = await repo.findById(view.id);
+    expect(fetched).toEqual(view);
+  });
+
+  it('rejects a duplicate active email via the partial unique index', async () => {
+    await create({ email: 'dupe@x.com' });
+    await expect(create({ email: 'dupe@x.com' })).rejects.toBeInstanceOf(
+      EmailAlreadyExistsError,
+    );
+  });
+
+  it('soft-deletes the aggregate, hides it, and frees the email for re-use', async () => {
+    const view = await create({ email: 'gone@x.com' });
+    await prisma.$transaction((tx) => repo.softDeleteTx(tx, view.id));
+
+    expect(await repo.findById(view.id)).toBeNull();
+    await expect(create({ email: 'gone@x.com' })).resolves.toBeDefined();
+  });
+
+  it('updates contact + measurement fields and recomputes nothing it is not given', async () => {
+    const view = await create({ weight: 70, height: 175, unit: Unit.METRIC });
+    const newBmi = roundBmi(computeBmi(80, 175, Unit.METRIC), 2);
+    const updated = await prisma.$transaction((tx) =>
+      repo.updateTx(tx, view.id, {
+        lastName: 'Byron',
+        weight: 80,
+        bmiValue: newBmi,
+      }),
+    );
+    expect(updated.lastName).toBe('Byron');
+    expect(updated.weight).toBe(80);
+    expect(updated.bmiValue).toBe(newBmi);
+    expect(updated.firstName).toBe('Ada'); // untouched
+  });
+
+  it('propagates a non-unique DB error (e.g. updating a missing row) unchanged', async () => {
+    const missingId = '00000000-0000-0000-0000-000000000000';
+    await expect(
+      prisma.$transaction((tx) =>
+        repo.updateTx(tx, missingId, { lastName: 'X' }),
+      ),
+    ).rejects.not.toBeInstanceOf(EmailAlreadyExistsError);
+  });
+
+  describe('list', () => {
+    beforeEach(async () => {
+      await create({
+        lastName: 'Alpha',
+        email: 'a@x.com',
+        unit: Unit.US,
+        weight: 120,
+        height: 60,
+        age: 20,
+      }); // bmi ~23.4
+      await create({
+        lastName: 'Bravo',
+        email: 'b@x.com',
+        unit: Unit.METRIC,
+        weight: 95,
+        height: 170,
+        age: 40,
+      }); // bmi ~32.9
+      await create({
+        lastName: 'Charlie',
+        email: 'c@x.com',
+        unit: Unit.METRIC,
+        weight: 55,
+        height: 175,
+        age: 30,
+      }); // bmi ~18
+    });
+
+    it('returns all active rows with a total', async () => {
+      const { data: rows, total } = await repo.list(
+        {},
+        { field: 'createdAt', direction: 'desc' },
+        { page: 1, pageSize: 25 },
+      );
+      expect(total).toBe(3);
+      expect(rows).toHaveLength(3);
+    });
+
+    it('filters by unit', async () => {
+      const { total } = await repo.list(
+        { unit: Unit.METRIC },
+        { field: 'createdAt', direction: 'desc' },
+        { page: 1, pageSize: 25 },
+      );
+      expect(total).toBe(2);
+    });
+
+    it('filters by BMI range', async () => {
+      const { data: rows } = await repo.list(
+        { minBmi: 30 },
+        { field: 'bmiValue', direction: 'asc' },
+        { page: 1, pageSize: 25 },
+      );
+      expect(rows.map((r) => r.lastName)).toEqual(['Bravo']);
+    });
+
+    it('filters by age range', async () => {
+      const { data: rows } = await repo.list(
+        { minAge: 25, maxAge: 35 },
+        { field: 'age', direction: 'asc' },
+        { page: 1, pageSize: 25 },
+      );
+      expect(rows.map((r) => r.lastName)).toEqual(['Charlie']); // age 30
+    });
+
+    it('searches by name/email (case-insensitive)', async () => {
+      const { data: rows } = await repo.list(
+        { search: 'BRAVO' },
+        { field: 'createdAt', direction: 'desc' },
+        { page: 1, pageSize: 25 },
+      );
+      expect(rows).toHaveLength(1);
+      expect(rows[0].email).toBe('b@x.com');
+    });
+
+    it('sorts by last name ascending', async () => {
+      const { data: rows } = await repo.list(
+        {},
+        { field: 'lastName', direction: 'asc' },
+        { page: 1, pageSize: 25 },
+      );
+      expect(rows.map((r) => r.lastName)).toEqual([
+        'Alpha',
+        'Bravo',
+        'Charlie',
+      ]);
+    });
+
+    it('paginates', async () => {
+      const page1 = await repo.list(
+        {},
+        { field: 'lastName', direction: 'asc' },
+        { page: 1, pageSize: 2 },
+      );
+      const page2 = await repo.list(
+        {},
+        { field: 'lastName', direction: 'asc' },
+        { page: 2, pageSize: 2 },
+      );
+      expect(page1.data).toHaveLength(2);
+      expect(page2.data).toHaveLength(1);
+      expect(page2.total).toBe(3);
+    });
+  });
+});

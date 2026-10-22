@@ -1,0 +1,21 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: curebase-bmi-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: bmi
+      POSTGRES_PASSWORD: bmi
+      POSTGRES_DB: bmi
+    ports:
+      - '5433:5432'
+    volumes:
+      - bmi_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U bmi -d bmi']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  bmi_pgdata:

@@ -1,0 +1,25 @@
+{
+  "name": "@org/api-e2e",
+  "version": "0.0.1",
+  "private": true,
+  "nx": {
+    "implicitDependencies": [
+      "@org/api"
+    ],
+    "targets": {
+      "e2e": {
+        "command": "jest --passWithNoTests",
+        "outputs": [
+          "{projectRoot}/test-output/jest/coverage"
+        ],
+        "dependsOn": [
+          "@org/api:build",
+          "@org/api:serve"
+        ],
+        "options": {
+          "cwd": "apps/api-e2e"
+        }
+      }
+    }
+  }
+}

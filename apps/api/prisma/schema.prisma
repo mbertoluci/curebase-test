@@ -1,0 +1,102 @@
+// Prisma schema for the Curebase BMI participant-capture service.
+//
+// Design notes (kept here so the model is self-documenting):
+// - Snake_case table/column names via @@map/@map to match the given spec.
+// - Soft-delete only: every table carries `deleted_at`; rows are never hard-deleted.
+// - "Current-state" model: one user -> one profile -> one participant row, edited
+//   in place (the brief's PUT). History/audit is handled at the application layer.
+// - weight/height/bmi are Decimal (money-like precision), never float, to avoid
+//   binary rounding drift on a clinical value.
+// - The partial unique index on profiles.email (WHERE deleted_at IS NULL) cannot be
+//   expressed in the Prisma DSL; it is added by a hand-written step in the migration.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+/// Unit system the measurements were entered in.
+enum Unit {
+  US
+  METRIC
+}
+
+/// Append-only audit trail. Written in the SAME transaction as each mutation,
+/// so a data change can never exist without its audit row. Intentionally has no
+/// `deleted_at` (audit is never soft-deleted) and holds PII in before/after by
+/// design - it is access-controlled and never echoed to logs.
+model AuditLog {
+  id        String   @id @default(uuid()) @db.Uuid
+  actor     String   @map("actor")
+  action    String   @map("action") // CREATE | UPDATE | DELETE
+  entity    String   @map("entity") // e.g. "participant"
+  entityId  String   @map("entity_id") @db.Uuid
+  before    Json?    @map("before")
+  after     Json?    @map("after")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([entity, entityId])
+  @@index([createdAt])
+  @@map("audit_log")
+}
+
+/// Root identity row. Owns one profile (PII) and one participant (measurements).
+model User {
+  id        String    @id @default(uuid()) @db.Uuid
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  profile     Profile?
+  participant Participant?
+
+  @@index([deletedAt])
+  @@map("users")
+}
+
+/// Personally identifiable information, separated from the measurements table.
+model Profile {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @unique @map("user_id") @db.Uuid
+  firstName String    @map("first_name")
+  lastName  String    @map("last_name")
+  email     String    @map("email")
+  phone     String?   @map("phone")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // NOTE: real uniqueness is a PARTIAL index (email WHERE deleted_at IS NULL),
+  // added in the migration so a soft-deleted email can be re-registered.
+  @@index([email])
+  @@index([deletedAt])
+  @@map("profiles")
+}
+
+/// A participant's current demographic + health snapshot and derived BMI.
+model Participant {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @unique @map("user_id") @db.Uuid
+  weight    Decimal   @map("weight") @db.Decimal(6, 2)
+  height    Decimal   @map("height") @db.Decimal(6, 2)
+  unit      Unit      @map("unit")
+  bmiValue  Decimal   @map("bmi_value") @db.Decimal(5, 2)
+  age       Int       @map("age")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([bmiValue])
+  @@index([age])
+  @@index([createdAt])
+  @@index([deletedAt])
+  @@map("participants")
+}
