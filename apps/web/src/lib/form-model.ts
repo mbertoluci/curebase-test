@@ -1,6 +1,6 @@
 import {
   BmiBand,
-  classifyBmi,
+  classifyMeasurements,
   computeBmi,
   convertMeasurements,
   CreateParticipantInput,
@@ -84,8 +84,19 @@ export function livePreview(
   const height = heightValue(values);
   const age = num(values.age);
   if (!(weight > 0) || !(height > 0)) return null;
-  const bmi = roundBmi(computeBmi(weight, height, values.unit));
-  return { bmi, band: classifyBmi(bmi, Number.isFinite(age) ? age : 0) };
+  // Display the rounded BMI, but classify on the unrounded value via the shared
+  // rule - the same the API uses on read, so the preview band never disagrees
+  // with the stored record.
+  const rawBmi = computeBmi(weight, height, values.unit);
+  return {
+    bmi: roundBmi(rawBmi),
+    band: classifyMeasurements(
+      weight,
+      height,
+      values.unit,
+      Number.isFinite(age) ? age : 0,
+    ),
+  };
 }
 
 /** Convert the current measurements when the unit toggle flips. */

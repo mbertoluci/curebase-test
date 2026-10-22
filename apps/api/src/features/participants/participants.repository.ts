@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
-import { classifyBmi, ParticipantView } from '@org/contracts';
+import { classifyMeasurements, ParticipantView } from '@org/contracts';
 import { PrismaService } from '../../database/prisma.service';
 import { EmailAlreadyExistsError } from './participants.error';
 import {
@@ -161,19 +161,23 @@ export class ParticipantsRepository {
   /** The single entity -> DTO boundary: Decimal -> number, Date -> ISO, derive band. */
   private toView(row: ParticipantRow): ParticipantView {
     const profile = row.user.profile;
-    const bmiValue = row.bmiValue.toNumber();
+    const weight = row.weight.toNumber();
+    const height = row.height.toNumber();
     return {
       id: row.id,
       firstName: profile?.firstName ?? '',
       lastName: profile?.lastName ?? '',
       email: profile?.email ?? '',
       phone: profile?.phone ?? null,
-      weight: row.weight.toNumber(),
-      height: row.height.toNumber(),
+      weight,
+      height,
       unit: row.unit,
       age: row.age,
-      bmiValue,
-      bmiBand: classifyBmi(bmiValue, row.age),
+      bmiValue: row.bmiValue.toNumber(),
+      // Classify on the unrounded BMI from the measurements, not the stored
+      // 2-decimal bmiValue - otherwise a boundary rounding (e.g. 24.997 -> 25.00)
+      // would flip the band. bmiValue stays the display/filter number.
+      bmiBand: classifyMeasurements(weight, height, row.unit, row.age),
       createdAt: row.createdAt.toISOString(),
       updatedAt: row.updatedAt.toISOString(),
     };

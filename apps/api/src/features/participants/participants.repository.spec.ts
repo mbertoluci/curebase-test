@@ -101,6 +101,21 @@ describe('ParticipantsRepository (integration)', () => {
     expect(fetched?.phone).toBeNull();
   });
 
+  it('derives the band from the unrounded BMI, not the stored 2-decimal value', async () => {
+    // 72.24 kg / 170 cm -> BMI 24.9965, stored as 25.00. Classifying the stored
+    // value would say OVERWEIGHT; the band must follow the raw value: NORMAL.
+    const view = await create({
+      email: 'boundary@x.com',
+      weight: 72.24,
+      height: 170,
+      unit: Unit.METRIC,
+      age: 30,
+    });
+    expect(view.bmiValue).toBe(25);
+    expect(view.bmiBand).toBe('NORMAL');
+    expect((await repo.findById(view.id))?.bmiBand).toBe('NORMAL');
+  });
+
   it('rejects a duplicate active email via the partial unique index', async () => {
     await create({ email: 'dupe@x.com' });
     await expect(create({ email: 'dupe@x.com' })).rejects.toBeInstanceOf(
