@@ -31,6 +31,12 @@ export class AllExceptionsFilter implements ExceptionFilter {
     // in the error envelope.
     const path = request.url.split('?')[0];
     const body = this.toErrorBody(exception, path);
+    // Sanitize by final status, regardless of whether the source was an
+    // AppException, a Nest HttpException, or an unexpected error.
+    if (body.statusCode >= HttpStatus.INTERNAL_SERVER_ERROR) {
+      body.message = 'An unexpected error occurred';
+      delete body.details;
+    }
     // Nest's default 404 message also embeds the request URL. Removing the
     // query from `path` alone would still echo it through that message.
     if (exception instanceof HttpException && request.url.includes('?')) {
@@ -72,10 +78,6 @@ export class AllExceptionsFilter implements ExceptionFilter {
       const status = exception.getStatus();
       const res = exception.getResponse();
       const isValidation = status === HttpStatus.BAD_REQUEST;
-      // A 5xx HttpException (e.g. a thrown InternalServerErrorException) can
-      // carry internal or PII detail in its message/details; never echo it to
-      // the client. 4xx messages are safe - they describe client-caused errors.
-      const isServerError = status >= HttpStatus.INTERNAL_SERVER_ERROR;
       return {
         statusCode: status,
         // A generic HTTP code only. Domain codes (PARTICIPANT_NOT_FOUND,
@@ -83,12 +85,8 @@ export class AllExceptionsFilter implements ExceptionFilter {
         // this cross-cutting filter must not guess a feature's meaning from a
         // bare status, or an unrelated 404 would be mislabelled.
         code: isValidation ? ErrorCode.VALIDATION_FAILED : `HTTP_${status}`,
-        message: isServerError
-          ? 'An unexpected error occurred'
-          : this.messageFromHttpResponse(res, exception.message),
-        details: isServerError
-          ? undefined
-          : this.detailsFromHttpResponse(res),
+        message: this.messageFromHttpResponse(res, exception.message),
+        details: this.detailsFromHttpResponse(res),
         timestamp,
         path,
       };
