@@ -8,6 +8,7 @@ import { ValidationModule } from '../common/validation/validation.module';
 import { DatabaseModule } from '../database/database.module';
 import { ParticipantsModule } from '../features/participants/participants.module';
 import { AppController } from './app.controller';
+import { serializeRequest } from './request-serializer';
 
 // NODE_ENV is read before ConfigModule.forRoot loads .env, so the launcher
 // must set it. ConfigModule loads the remaining .env values into process.env;
@@ -21,18 +22,11 @@ const isProduction = process.env.NODE_ENV === 'production';
     LoggerModule.forRoot({
       pinoHttp: {
         level: process.env.LOG_LEVEL ?? 'info',
-        // Log only id + method + path for each request. The default serializer
-        // would log the full URL (query strings carry PII like ?search=<email>)
-        // and all request headers; this keeps PII out of the logs at the source.
-        serializers: {
-          req(req: { id?: unknown; method?: string; url?: string }) {
-            return {
-              id: req.id,
-              method: req.method,
-              url: typeof req.url === 'string' ? req.url.split('?')[0] : req.url,
-            };
-          },
-        },
+        // Log only id + method + path for each request (the A17 PII boundary).
+        // The default serializer would log the full URL (query strings carry
+        // PII like ?search=<email>) and all request headers; this keeps PII
+        // out of the logs at the source. See request-serializer.ts (+ spec).
+        serializers: { req: serializeRequest },
         // Defence in depth in case any other log path touches these headers.
         redact: ['req.headers.authorization', 'req.headers.cookie'],
         transport: isProduction

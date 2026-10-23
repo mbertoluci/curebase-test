@@ -4,6 +4,7 @@ import {
   ForbiddenException,
   HttpException,
   HttpStatus,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { ErrorCode } from '@org/contracts';
@@ -94,6 +95,27 @@ describe('AllExceptionsFilter', () => {
     );
     expect(body.path).toBe('/api/participants');
     expect(JSON.stringify(body)).not.toContain('ada@example.com');
+  });
+
+  it('logs the path without the query string, on both the 4xx and 5xx log paths', () => {
+    // The envelope tests above do not catch a regression that logs
+    // request.url instead of the stripped path - this pins the log lines too.
+    for (const exception of [
+      new NotFoundException('gone'),
+      new Error('boom'),
+    ]) {
+      const debug = jest.spyOn(Logger.prototype, 'debug').mockReturnValue();
+      const error = jest.spyOn(Logger.prototype, 'error').mockReturnValue();
+      run(exception, '/api/participants?search=ada@example.com');
+      const logged = [...debug.mock.calls, ...error.mock.calls]
+        .flat()
+        .join(' ');
+      expect(logged).toContain('/api/participants');
+      expect(logged).not.toContain('search');
+      expect(logged).not.toContain('ada@example.com');
+      debug.mockRestore();
+      error.mockRestore();
+    }
   });
 
   it('removes the query from the default Nest 404 message as well as the path', () => {
