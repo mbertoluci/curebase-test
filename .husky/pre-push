@@ -1,0 +1,9 @@
+# Final quality gate before code leaves the machine. The pre-commit hook runs a
+# fast, affected-only check (format + typecheck/lint/test); this runs the FULL
+# gate across every project - typecheck, lint, build and test - so nothing
+# substandard can be pushed. Nx caches by input, so an unchanged gate is
+# near-instant. Note: the api tests include Postgres integration tests, so the
+# database must be up (npm run db:up).
+npx nx run-many -t typecheck lint build test \
+  --projects=@org/api,@org/web,@org/contracts \
+  --parallel=3
