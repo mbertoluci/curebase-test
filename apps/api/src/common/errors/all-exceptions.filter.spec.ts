@@ -130,6 +130,19 @@ describe('AllExceptionsFilter', () => {
     expect(JSON.stringify(body)).not.toContain('search');
   });
 
+  it('never echoes a 5xx HttpException message/details to the client', () => {
+    const body = run(
+      new HttpException(
+        { message: 'DB DSN postgres://user:pass@host/db', hint: 'secret' },
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      ),
+    );
+    expect(body.statusCode).toBe(500);
+    expect(body.message).toBe('An unexpected error occurred');
+    expect(body.details).toBeUndefined();
+    expect(JSON.stringify(body)).not.toContain('postgres://');
+  });
+
   it('hides unexpected errors behind a generic 500', () => {
     const body = run(new Error('secret stack detail'));
     expect(status).toHaveBeenCalledWith(HttpStatus.INTERNAL_SERVER_ERROR);
