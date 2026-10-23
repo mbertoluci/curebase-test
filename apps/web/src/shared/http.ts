@@ -24,14 +24,16 @@ export async function request<T>(path: string, init?: RequestInit): Promise<T> {
   let res: Response;
   try {
     res = await fetch(`${BASE_URL}${path}`, {
-      headers: { 'content-type': 'application/json' },
+      // Only declare a JSON body when we actually send one; a Content-Type on a
+      // bodyless GET would force a CORS preflight when the API is cross-origin.
+      headers: init?.body ? { 'content-type': 'application/json' } : undefined,
       ...init,
     });
   } catch {
     throw new ApiError(
       0,
       'NETWORK_ERROR',
-      'Could not reach the API. Is it running?',
+      'Could not reach the server. Please try again.',
     );
   }
 

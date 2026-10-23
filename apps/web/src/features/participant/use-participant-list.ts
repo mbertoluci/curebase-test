@@ -41,13 +41,24 @@ export function useParticipantList() {
   // Monotonic request id: only the most recently issued load may touch state,
   // so a slow earlier response can't overwrite a newer one (stale-while-typing).
   const loadSeq = useRef(0);
+  // In-flight request, aborted when a newer load starts or the screen unmounts.
+  const abortRef = useRef<AbortController | null>(null);
   const load = useCallback(async (q: ListParticipantQuery) => {
     const seq = ++loadSeq.current;
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
     setLoading(true);
     setError(null);
     try {
-      const result = await api.list(q);
+      const result = await api.list(q, controller.signal);
       if (seq !== loadSeq.current) return; // superseded by a newer load
+      // Clamp an out-of-range page (e.g. deleting the last row of the last
+      // page): reload the real last page instead of showing an empty table.
+      if (result.pageInfo.page > result.pageInfo.totalPages) {
+        setQuery((prev) => ({ ...prev, page: result.pageInfo.totalPages }));
+        return;
+      }
       setPage(result);
     } catch (err) {
       if (seq !== loadSeq.current) return;
@@ -58,6 +69,9 @@ export function useParticipantList() {
       if (seq === loadSeq.current) setLoading(false);
     }
   }, []);
+
+  // Abort any in-flight request when the screen unmounts.
+  useEffect(() => () => abortRef.current?.abort(), []);
 
   // Debounced reload whenever the query (or a manual refresh) changes.
   useEffect(() => {
