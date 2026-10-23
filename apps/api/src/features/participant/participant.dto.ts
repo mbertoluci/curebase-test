@@ -112,7 +112,7 @@ export class UpdateParticipantDto extends PartialType(CreateParticipantDto, {
 }) {}
 
 /** Allow-listed query contract for GET /participants. */
-export class ListParticipantsQueryDto implements ListParticipantsQuery {
+export class ListParticipantQueryDto implements ListParticipantsQuery {
   @ApiPropertyOptional({ minimum: 1, default: 1 })
   @IsOptional()
   @Type(() => Number)
@@ -214,7 +214,7 @@ export class PageInfoDto implements PageInfo {
  * so OpenAPI must document { data, pageInfo } (not isArray) or generated clients
  * break.
  */
-export class PaginatedParticipantsDto implements Paginated<ParticipantView> {
+export class PaginatedParticipantDto implements Paginated<ParticipantView> {
   @ApiProperty({ type: ParticipantDto, isArray: true })
   data!: ParticipantDto[];
 

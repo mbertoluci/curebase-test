@@ -3,7 +3,7 @@ import { ParticipantSortField, SortDirection, Unit } from '@org/contracts';
 /**
  * Repository-facing types. These describe exactly what the data-access layer
  * accepts and the shapes it works with internally - deliberately separate from
- * the HTTP DTOs (apps/.../participants.dto.ts) and from the Prisma entities.
+ * the HTTP DTOs (apps/.../participant.dto.ts) and from the Prisma entities.
  */
 
 /** Everything needed to persist a new participant aggregate (profile + measurements + derived BMI). */

@@ -3,9 +3,9 @@ import { PrismaService } from '../../database/prisma.service';
 import {
   EmailAlreadyExistsError,
   ParticipantNotFoundError,
-} from './participants.error';
-import { ParticipantsRepository } from './participants.repository';
-import { CreateParticipantData } from './participants.type';
+} from './participant.error';
+import { ParticipantRepository } from './participant.repository';
+import { CreateParticipantData } from './participant.type';
 
 /**
  * Integration tests - they run against the real Postgres (docker-compose).
@@ -55,9 +55,9 @@ describe('destructive-test database guard', () => {
   });
 });
 
-describe('ParticipantsRepository (integration)', () => {
+describe('ParticipantRepository (integration)', () => {
   const prisma = new PrismaService();
-  const repo = new ParticipantsRepository(prisma);
+  const repo = new ParticipantRepository(prisma);
 
   const data = (
     over: Partial<CreateParticipantData> = {},

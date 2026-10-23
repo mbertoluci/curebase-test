@@ -8,7 +8,7 @@ import { ValidationModule } from '../common/validation/validation.module';
 import { APP_CONFIG, AppConfig, loadConfig } from '../config/configuration';
 import { serializeRequest } from './request-serializer';
 import { DatabaseModule } from '../database/database.module';
-import { ParticipantsModule } from '../features/participants/participants.module';
+import { ParticipantModule } from '../features/participant/participant.module';
 import { AppController } from './app.controller';
 
 @Module({
@@ -41,7 +41,7 @@ import { AppController } from './app.controller';
     DatabaseModule,
     AuditModule,
     ValidationModule,
-    ParticipantsModule,
+    ParticipantModule,
   ],
   controllers: [AppController],
   providers: [

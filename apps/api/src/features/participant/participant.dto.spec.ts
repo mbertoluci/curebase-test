@@ -2,9 +2,9 @@ import { plainToInstance } from 'class-transformer';
 import { validate } from 'class-validator';
 import {
   CreateParticipantDto,
-  ListParticipantsQueryDto,
+  ListParticipantQueryDto,
   UpdateParticipantDto,
-} from './participants.dto';
+} from './participant.dto';
 
 describe('CreateParticipantDto', () => {
   it('accepts a valid payload and coerces numeric strings', async () => {
@@ -94,9 +94,9 @@ describe('UpdateParticipantDto', () => {
   });
 });
 
-describe('ListParticipantsQueryDto', () => {
+describe('ListParticipantQueryDto', () => {
   it('coerces numeric query params and validates the sort allow-list', async () => {
-    const dto = plainToInstance(ListParticipantsQueryDto, {
+    const dto = plainToInstance(ListParticipantQueryDto, {
       page: '2',
       pageSize: '10',
       minBmi: '18.5',
@@ -109,7 +109,7 @@ describe('ListParticipantsQueryDto', () => {
   });
 
   it('rejects a sort field outside the allow-list', async () => {
-    const dto = plainToInstance(ListParticipantsQueryDto, { sortBy: 'ssn' });
+    const dto = plainToInstance(ListParticipantQueryDto, { sortBy: 'ssn' });
     const props = (await validate(dto)).map((e) => e.property);
     expect(props).toContain('sortBy');
   });

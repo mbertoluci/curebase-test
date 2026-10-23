@@ -7,7 +7,7 @@ import { ErrorCode } from '@org/contracts';
  * Carrying a stable machine `code` (not just an HTTP status) means clients and
  * the web app branch on the code, and the global exception filter can turn any
  * AppException into the one error envelope without leaking internals. Concrete
- * errors live next to their feature (e.g. participants.error.ts) and expose
+ * errors live next to their feature (e.g. participant.error.ts) and expose
  * static `httpStatus`/`code` so the `@Throws()` decorator can document them.
  */
 export abstract class AppException extends Error {

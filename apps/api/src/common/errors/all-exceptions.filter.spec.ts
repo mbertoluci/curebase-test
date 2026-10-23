@@ -11,7 +11,7 @@ import { ErrorCode } from '@org/contracts';
 import {
   EmailAlreadyExistsError,
   ParticipantNotFoundError,
-} from '../../features/participants/participants.error';
+} from '../../features/participant/participant.error';
 import { AllExceptionsFilter } from './all-exceptions.filter';
 import { AppException } from './app-exception';
 

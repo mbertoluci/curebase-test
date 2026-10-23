@@ -1,4 +1,4 @@
-import { ParticipantNotFoundError } from '../../features/participants/participants.error';
+import { ParticipantNotFoundError } from '../../features/participant/participant.error';
 import { Throws } from './throws.decorator';
 
 describe('Throws', () => {

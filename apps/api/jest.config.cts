@@ -28,7 +28,7 @@ module.exports = {
   // branch points we can't meaningfully exercise; the logic layers are ~100%.
   coverageThreshold: {
     global: { statements: 92, branches: 70, functions: 92, lines: 94 },
-    './src/features/participants/participants.service.ts': {
+    './src/features/participant/participant.service.ts': {
       statements: 100,
       functions: 100,
       lines: 100,
