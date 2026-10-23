@@ -8,6 +8,26 @@ import { Prisma, PrismaClient } from '@prisma/client';
 import { loadConfig } from '../config/configuration';
 
 /**
+ * Redact SQL quoted string literals ('...' incl. escaped '' inside), so a
+ * template that somehow inlined a value still cannot leak it. Parameterized
+ * templates ($1 placeholders) pass through untouched.
+ */
+export function scrubSqlLiterals(sql: string): string {
+  return sql.replace(/'(?:[^']|'')*'/g, "'…'");
+}
+
+/** Allow-listed operation names for templates we cannot confidently log. */
+const SQL_OPERATIONS: readonly string[] = [
+  'SELECT',
+  'INSERT',
+  'UPDATE',
+  'DELETE',
+  'BEGIN',
+  'COMMIT',
+  'ROLLBACK',
+];
+
+/**
  * Owns the Prisma Client lifecycle and is the single database handle injected
  * into repositories. Connecting on module init fails fast if the DB is
  * unreachable; disconnecting on destroy releases the pool cleanly.
@@ -44,23 +64,24 @@ export class PrismaService
   async onModuleInit(): Promise<void> {
     if (!this.isProduction) {
       this.$on('query', (event) => {
-        // Both params and raw SQL can contain PII (including audit snapshots).
-        // Allow-list only the operation, never log arbitrary SQL or values.
-        const operation = event.query.trim().split(/\s+/, 1)[0].toUpperCase();
-        const safeOperation = [
-          'SELECT',
-          'INSERT',
-          'UPDATE',
-          'DELETE',
-          'BEGIN',
-          'COMMIT',
-          'ROLLBACK',
-        ].includes(operation)
+        // Dev-only query diagnostics. `event.params` (the actual values, incl.
+        // PII and audit snapshots) is NEVER logged. The SQL template is safe:
+        // Postgres prepared statements carry $1 placeholders, not values. Two
+        // fail-closed defences: quoted string literals are redacted (an
+        // inlined value from a raw-unsafe query cannot leak), and only a
+        // template that starts with a known SQL keyword is logged at all -
+        // anything else degrades to an allow-listed operation name.
+        const scrubbed = scrubSqlLiterals(event.query.trim());
+        const operation = scrubbed.split(/\s+/, 1)[0].toUpperCase();
+        const safeOperation = SQL_OPERATIONS.includes(operation)
           ? operation
           : 'OTHER';
-        this.logger.debug(
-          `Prisma query ${safeOperation} - ${event.duration}ms`,
-        );
+        const detail = /^[(\s]*(SELECT|INSERT|UPDATE|DELETE|BEGIN|COMMIT|ROLLBACK|WITH|SAVEPOINT)\b/i.test(
+          scrubbed,
+        )
+          ? scrubbed
+          : safeOperation;
+        this.logger.debug(`Prisma query ${detail} - ${event.duration}ms`);
       });
     }
     // Engine messages may include SQL, parameters or rejected row contents.

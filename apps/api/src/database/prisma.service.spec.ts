@@ -35,8 +35,12 @@ describe('PrismaService log privacy', () => {
         ((event: Prisma.QueryEvent) => void) | undefined;
       expect(Boolean(query)).toBe(nodeEnv !== 'production');
       if (query) {
+        // Parameterized template passes through (placeholders, no literals);
+        // an inlined quoted literal is redacted; a bare value (not SQL)
+        // degrades to an allow-listed operation - the value never appears.
         for (const sql of [
-          "SELECT 'private@example.com'",
+          'SELECT "id" FROM "profiles" WHERE email = $1',
+          'SELECT "id" FROM "profiles" WHERE email = \'private@example.com\'',
           'private@example.com',
         ]) {
           query({
@@ -48,7 +52,12 @@ describe('PrismaService log privacy', () => {
           });
         }
         expect(debug.mock.calls).toEqual([
-          ['Prisma query SELECT - 17ms'],
+          [
+            'Prisma query SELECT "id" FROM "profiles" WHERE email = $1 - 17ms',
+          ],
+          [
+            "Prisma query SELECT \"id\" FROM \"profiles\" WHERE email = '…' - 17ms",
+          ],
           ['Prisma query OTHER - 17ms'],
         ]);
       }
