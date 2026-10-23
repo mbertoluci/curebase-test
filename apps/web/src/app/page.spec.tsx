@@ -6,22 +6,19 @@ import {
   screen,
   waitFor,
 } from '@testing-library/react';
-import { api, ApiError } from '../lib/api';
+import { ApiError } from '../shared/http';
+import { api } from '../features/participant/participant.api';
 import HomePage from './page';
 
-jest.mock('../lib/api', () => {
-  const actual = jest.requireActual('../lib/api');
-  return {
-    __esModule: true,
-    ...actual,
-    api: {
-      list: jest.fn(),
-      remove: jest.fn(),
-      create: jest.fn(),
-      update: jest.fn(),
-    },
-  };
-});
+jest.mock('../features/participant/participant.api', () => ({
+  __esModule: true,
+  api: {
+    list: jest.fn(),
+    remove: jest.fn(),
+    create: jest.fn(),
+    update: jest.fn(),
+  },
+}));
 const mockApi = api as jest.Mocked<typeof api>;
 
 const view = {

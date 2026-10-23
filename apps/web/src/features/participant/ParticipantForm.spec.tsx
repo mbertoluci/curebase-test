@@ -6,17 +6,14 @@ import {
   waitFor,
   act,
 } from '@testing-library/react';
-import { api, ApiError } from '../lib/api';
+import { ApiError } from '../../shared/http';
+import { api } from './participant.api';
 import { ParticipantForm } from './ParticipantForm';
 
-jest.mock('../lib/api', () => {
-  const actual = jest.requireActual('../lib/api');
-  return {
-    __esModule: true,
-    ...actual,
-    api: { create: jest.fn(), update: jest.fn(), list: jest.fn() },
-  };
-});
+jest.mock('./participant.api', () => ({
+  __esModule: true,
+  api: { create: jest.fn(), update: jest.fn(), list: jest.fn() },
+}));
 const mockApi = api as jest.Mocked<typeof api>;
 
 const view: ParticipantView = {

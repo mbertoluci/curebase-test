@@ -1,4 +1,5 @@
-import { api, ApiError } from './api';
+import { ApiError } from '../../shared/http';
+import { api } from './participant.api';
 
 function mockFetch(status: number, body: unknown) {
   global.fetch = jest.fn().mockResolvedValue({
