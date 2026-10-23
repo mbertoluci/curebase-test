@@ -1,12 +1,10 @@
 import type { ApiErrorBody } from '@org/contracts';
 
-// The browser uses the public URL; the server (SSR) can use an internal address
-// (e.g. a service name in containers) via API_INTERNAL_URL, which is never
-// inlined into the client bundle.
-const BASE_URL =
-  process.env.API_INTERNAL_URL ??
-  process.env.NEXT_PUBLIC_API_URL ??
-  'http://localhost:3333/api';
+// One public API base, used by the browser and (same-origin on localhost) by the
+// server. A cross-origin container deploy where the server reaches the API by an
+// internal address would add a server-only URL; that belongs with the deployment
+// config, not hard-wired here.
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3333/api';
 
 /** Error carrying the API's machine code, so the UI can branch on it. */
 export class ApiError extends Error {

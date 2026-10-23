@@ -15,7 +15,9 @@ import { ApiError } from '@/shared/http';
 import { reportError } from '@/shared/report-error';
 import { api } from '@/entities/participant';
 
-const DEFAULT_QUERY: ListParticipantQuery = {
+// The first-page query. Exported so the server-side seed (app/page.tsx) fetches
+// the exact same view the hook's seed-skip identity assumes - they can't drift.
+export const DEFAULT_QUERY: ListParticipantQuery = {
   page: 1,
   pageSize: DEFAULT_PAGE_SIZE,
   sortBy: DEFAULT_SORT_FIELD,

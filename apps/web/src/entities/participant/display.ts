@@ -34,12 +34,30 @@ export function heightLabel(unit: Unit, height: number): string {
   return `${height} cm`;
 }
 
+const MONTHS = [
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'May',
+  'Jun',
+  'Jul',
+  'Aug',
+  'Sep',
+  'Oct',
+  'Nov',
+  'Dec',
+] as const;
+
 export function formatDate(iso: string): string {
-  // Fixed locale + UTC so the server and client produce identical markup (no
-  // hydration mismatch) and the audit time is unambiguous across time zones.
-  return new Date(iso).toLocaleString('en-US', {
-    timeZone: 'UTC',
-    dateStyle: 'medium',
-    timeStyle: 'short',
-  });
+  // Hand-formatted from UTC components (no Intl/locale) so the output is byte-
+  // identical on the server and the client regardless of each runtime's ICU
+  // build - the SSR markup hydrates without a mismatch, and the audit time is
+  // unambiguous across time zones.
+  const d = new Date(iso);
+  const hour24 = d.getUTCHours();
+  const hour12 = hour24 % 12 === 0 ? 12 : hour24 % 12;
+  const minute = String(d.getUTCMinutes()).padStart(2, '0');
+  const meridiem = hour24 < 12 ? 'AM' : 'PM';
+  return `${MONTHS[d.getUTCMonth()]} ${d.getUTCDate()}, ${d.getUTCFullYear()}, ${hour12}:${minute} ${meridiem}`;
 }

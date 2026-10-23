@@ -1,11 +1,6 @@
-import {
-  DEFAULT_PAGE_SIZE,
-  DEFAULT_SORT_DIR,
-  DEFAULT_SORT_FIELD,
-  Paginated,
-  ParticipantView,
-} from '@org/contracts';
+import { Paginated, ParticipantView } from '@org/contracts';
 import { api } from '@/entities/participant';
+import { DEFAULT_QUERY } from '@/features/participant-list';
 import { reportError } from '@/shared/report-error';
 import { ParticipantPage } from '@/widgets/participant-page';
 
@@ -13,30 +8,25 @@ import { ParticipantPage } from '@/widgets/participant-page';
 // than statically prerendered at build time.
 export const dynamic = 'force-dynamic';
 
-// Cap the server-side load so a slow/hanging API can't block the first paint.
+// A data-complete first paint is the trade for awaiting the fetch: this bounds
+// how long a slow or unreachable API can delay it before we fall back to a
+// client load. It caps the blocking, it does not make SSR non-blocking.
 const SSR_TIMEOUT_MS = 3000;
 
 /**
- * Server Component: fetch the first page on the server for a data-complete first
- * paint, then hand it to the client widget. If the API is unreachable at render
- * time we fall back to null and let the client load on mount - the page still
- * renders instead of erroring.
+ * Server Component: fetch the first page (the same DEFAULT_QUERY the client hook
+ * seeds from) on the server, then hand it to the client widget. On any failure
+ * we report the cause and fall back to null so the client loads on mount and the
+ * page still renders.
  */
 export default async function HomePage() {
   let initialData: Paginated<ParticipantView> | null = null;
   try {
     initialData = await api.list(
-      {
-        page: 1,
-        pageSize: DEFAULT_PAGE_SIZE,
-        sortBy: DEFAULT_SORT_FIELD,
-        sortDir: DEFAULT_SORT_DIR,
-      },
+      DEFAULT_QUERY,
       AbortSignal.timeout(SSR_TIMEOUT_MS),
     );
   } catch (error) {
-    // Unreachable, slow, or malformed API at render time: record the cause and
-    // fall back to a client load so the page still renders.
     reportError(error, 'ssr-initial-load');
   }
   return <ParticipantPage initialData={initialData} />;
