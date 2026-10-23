@@ -2,15 +2,16 @@
 
 import {
   AGE_BOUNDS,
+  ErrorCode,
   normalizeEmail,
   ParticipantView,
   Unit,
 } from '@org/contracts';
 import { useEffect, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
-import { ApiError } from '@/shared/http';
+import { normalizeApiError } from '@/shared/api-error';
 import { reportError } from '@/shared/report-error';
-import { Button, Field, Input, Notice, cardSurface, cx } from '@/shared/ui';
+import { Button, Field, Input, Notice, cx } from '@/shared/ui';
 import { api, BandChip, formatBmi, weightUnit } from '@/entities/participant';
 import {
   convertToUnit,
@@ -19,6 +20,8 @@ import {
   fromView,
   FormValues,
   livePreview,
+  PARTICIPANT_FIELDS,
+  toFormErrors,
   validate,
 } from './model';
 
@@ -55,7 +58,6 @@ export function ParticipantForm({
 }: Props) {
   const [values, setValues] = useState<FormValues>(emptyForm);
   const [errors, setErrors] = useState<FieldErrors>({});
-  const [serverError, setServerError] = useState<string | null>(null);
   const [duplicate, setDuplicate] = useState<ParticipantView | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const submitInFlight = useRef(false);
@@ -82,7 +84,6 @@ export function ParticipantForm({
   useEffect(() => {
     setValues(editing ? fromView(editing) : emptyForm());
     setErrors({});
-    setServerError(null);
     setDuplicate(null);
     sessionRef.current += 1;
     unitSnapshots.current = {};
@@ -119,7 +120,6 @@ export function ParticipantForm({
 
     submitInFlight.current = true;
     setSubmitting(true);
-    setServerError(null);
     setDuplicate(null);
     const session = sessionRef.current;
     try {
@@ -148,28 +148,29 @@ export function ParticipantForm({
   }
 
   async function handleError(error: unknown) {
-    if (!(error instanceof ApiError)) {
-      reportError(error, 'participant-save');
-      setServerError('Something went wrong. Please try again.');
-      return;
-    }
-    if (error.code === 'EMAIL_ALREADY_EXISTS' && !editing) {
-      setErrors((prev) => ({
-        ...prev,
-        email: 'A participant with this email already exists',
-      }));
-      // Offer to edit the existing record. `search` is a substring match, so
-      // we must pick the row whose email matches exactly (the uniqueness the
-      // server rejected on) - never just the first substring hit, which could
-      // be a different person.
+    // One normalization step: field messages land on their controls, everything
+    // else becomes the form-level banner (errors.form).
+    const normalized = normalizeApiError(
+      error,
+      PARTICIPANT_FIELDS,
+      'participant-save',
+    );
+    setErrors((prev) => ({
+      ...prev,
+      ...toFormErrors(normalized, values.unit),
+    }));
+
+    // Beyond the inline email error, a duplicate also offers a jump to the
+    // existing record (create mode only - in edit mode the email is their own).
+    if (normalized.code === ErrorCode.EMAIL_ALREADY_EXISTS && !editing) {
+      // `search` is a substring match, so pick the row whose email matches
+      // exactly (the uniqueness the server rejected on) on the normalized form
+      // - never the first substring hit, which could be a different person.
       try {
-        // Compare on the normalized email (the form the server stores and
-        // de-duplicates on), so a case difference can't hide the real match.
         const query = normalizeEmail(values.email);
         const page = await api.list({ search: query });
-        // The user may have corrected the email while this lookup was in
-        // flight (e.g. typed a new one and kept going); offering the old
-        // email's record then would point at the wrong person.
+        // The user may have corrected the email while this lookup was in flight;
+        // offering the old email's record then would point at the wrong person.
         if (normalizeEmail(emailRef.current) !== query) return;
         const exact = page.data.find((p) => normalizeEmail(p.email) === query);
         setDuplicate(exact ?? null);
@@ -178,17 +179,11 @@ export function ParticipantForm({
         // leaves a trail instead of vanishing silently.
         reportError(lookupError, 'duplicate-lookup');
       }
-      return;
     }
-    if (Array.isArray(error.details)) {
-      setServerError((error.details as string[]).join(' · '));
-      return;
-    }
-    setServerError(error.message);
   }
 
   return (
-    <form className={cardSurface} onSubmit={handleSubmit} noValidate>
+    <form onSubmit={handleSubmit} noValidate>
       <fieldset className="mb-[18px] border-0 p-0" disabled={submitting}>
         <legend className={LEGEND}>Demographics</legend>
         <div className="grid grid-cols-2 gap-[14px] max-tablet:grid-cols-1">
@@ -364,7 +359,6 @@ export function ParticipantForm({
           {errors.form}
         </Notice>
       )}
-      {serverError && <Notice tone="error">{serverError}</Notice>}
 
       <div className="flex justify-end gap-2">
         {editing && (

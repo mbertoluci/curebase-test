@@ -119,6 +119,10 @@ describe('ParticipantPage', () => {
     renderPage();
     await screen.findByText('Ada Lovelace');
 
+    // The form now lives in a modal opened from the top "Add participant" button.
+    fireEvent.click(screen.getByRole('button', { name: /Add participant/ }));
+    await screen.findByText('New participant');
+
     fireEvent.change(screen.getByLabelText('First name'), {
       target: { value: 'Peter' },
     });

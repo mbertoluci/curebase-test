@@ -12,7 +12,6 @@ import {
   formatBmi,
   formatDate,
   heightLabel,
-  unitLabel,
   weightUnit,
 } from '@/entities/participant';
 
@@ -153,9 +152,6 @@ export function ParticipantsTable({
                 Weight
               </th>
               {header('bmiValue', SORTABLE.bmiValue)}
-              <th scope="col" className={TH}>
-                Unit
-              </th>
               {header('createdAt', SORTABLE.createdAt)}
               <th scope="col" className={TH}>
                 Actions
@@ -190,9 +186,6 @@ export function ParticipantsTable({
                   <span className="inline-flex items-center gap-2">
                     {formatBmi(p.bmiValue)} <BandChip band={p.bmiBand} />
                   </span>
-                </td>
-                <td className={TD} data-label="Unit">
-                  {unitLabel(p.unit)}
                 </td>
                 <td className={TD} data-label="Created (UTC)">
                   {formatDate(p.createdAt)}
