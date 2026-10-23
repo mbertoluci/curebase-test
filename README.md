@@ -155,7 +155,7 @@ Coverage is collected on every `nx test` and enforced via `coverageThreshold`, s
 - **web** - form model, API client, and the React components (form, table, filters) via Testing Library, plus the page orchestration.
 - **api-e2e** - full HTTP path against a running server: create → duplicate 409 → validation 400 → update recompute → search → soft-delete 404.
 
-A **Husky pre-commit** hook formats staged files and runs `nx affected -t typecheck lint test` (so the coverage gate runs on every commit; the DB must be up).
+Two **Husky** gates guard quality. **pre-commit** formats staged files and runs `nx affected -t typecheck lint test` - fast and change-scoped, so the coverage gate runs on every commit. **pre-push** runs the full gate (`nx run-many -t typecheck lint build test` across all projects, build included) as the final barrier, so nothing substandard can be pushed. Both need the DB up (the api tests hit real Postgres).
 
 ---
 
