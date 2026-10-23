@@ -72,6 +72,10 @@ export class AllExceptionsFilter implements ExceptionFilter {
       const status = exception.getStatus();
       const res = exception.getResponse();
       const isValidation = status === HttpStatus.BAD_REQUEST;
+      // A 5xx HttpException (e.g. a thrown InternalServerErrorException) can
+      // carry internal or PII detail in its message/details; never echo it to
+      // the client. 4xx messages are safe - they describe client-caused errors.
+      const isServerError = status >= HttpStatus.INTERNAL_SERVER_ERROR;
       return {
         statusCode: status,
         // A generic HTTP code only. Domain codes (PARTICIPANT_NOT_FOUND,
@@ -79,8 +83,12 @@ export class AllExceptionsFilter implements ExceptionFilter {
         // this cross-cutting filter must not guess a feature's meaning from a
         // bare status, or an unrelated 404 would be mislabelled.
         code: isValidation ? ErrorCode.VALIDATION_FAILED : `HTTP_${status}`,
-        message: this.messageFromHttpResponse(res, exception.message),
-        details: this.detailsFromHttpResponse(res),
+        message: isServerError
+          ? 'An unexpected error occurred'
+          : this.messageFromHttpResponse(res, exception.message),
+        details: isServerError
+          ? undefined
+          : this.detailsFromHttpResponse(res),
         timestamp,
         path,
       };

@@ -24,7 +24,7 @@ npm run db:migrate     # applies migrations + generates the Prisma client
 npm run dev            # API on :3333, web on :3000
 ```
 
-Open the web app at **http://localhost:3000**. API docs (OpenAPI/Swagger) are at **http://localhost:3333/api/docs**.
+Open the web app at **http://localhost:3000**. API docs (OpenAPI/Swagger) are at **http://localhost:3333/api/docs** (served outside production only).
 
 Run API and web separately with `npm run dev:api` / `npm run dev:web`.
 
@@ -128,7 +128,9 @@ A **Husky pre-commit** hook formats staged files and runs `nx affected -t typech
 
 **How is user input handled safely?** Prisma parameterises every query (no string-built SQL). DTO whitelisting drops unexpected fields. Request logs record only the id, method and path - never the query string (which can carry PII like `?search=<email>`) and never request headers; sensitive headers are additionally redacted as defence in depth. Ids are validated as UUIDs (`ParseUUIDPipe`).
 
-**Error handling.** A single `AppException` base carries a stable `code` + HTTP status; a global filter converts everything (domain errors, Nest `HttpException`, unknown bugs) into one envelope and guarantees no stack/PII leaks. `@Throws(...)` on controllers declares expected errors and feeds OpenAPI, so the docs can't drift from the code.
+**Error handling.** A single `AppException` base carries a stable `code` + HTTP status; a global filter converts everything (domain errors, Nest `HttpException`, unknown bugs) into one envelope. 4xx carry a safe, client-caused message; every 5xx (including a thrown `HttpException`) is flattened to a generic message with no `details`, so an internal or PII-bearing message is never echoed to the client. The full error is logged server-side only. `@Throws(...)` on controllers declares expected errors and feeds OpenAPI, so the docs can't drift from the code.
+
+**Transport hardening.** `helmet` sets the standard security headers (CSP is left off because the only HTML served is the dev Swagger UI; a browser-facing app would ship a real policy). CORS is an explicit origin allow-list (`WEB_ORIGIN`), not a wildcard. The Swagger UI is served outside production only, so a deployed instance does not publish its full API surface.
 
 **BMI as stored vs computed.** Stored (and recomputed on every write) from server-side inputs, so the table/export never recomputes and the value can't drift from weight/height. Classification is done on the raw value; rounding is display-only.
 
