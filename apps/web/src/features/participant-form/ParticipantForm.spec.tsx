@@ -290,17 +290,20 @@ describe('ParticipantForm', () => {
     ).toBeTruthy();
   });
 
-  it('surfaces server-side validation details', async () => {
+  it('routes server validation details to their field, and the rest to the banner', async () => {
     mockApi.create.mockRejectedValue(
       new ApiError(400, 'VALIDATION_FAILED', 'Validation failed', [
-        'weight too high',
-        'bad age',
+        'weight must be a positive number', // -> weight field
+        'something is off', // unknown field -> form banner
       ]),
     );
     render(<ParticipantForm editing={null} {...handlers()} />);
     fillValidUs();
     fireEvent.click(screen.getByRole('button', { name: /Save participant/ }));
-    expect(await screen.findByText('weight too high · bad age')).toBeTruthy();
+    // Field message sits under its control (leading token stripped)...
+    expect(await screen.findByText('Must be a positive number')).toBeTruthy();
+    // ...and the unmappable message becomes the form-level banner.
+    expect(screen.getByText('something is off')).toBeTruthy();
   });
 
   it('shows the message for a generic API error', async () => {

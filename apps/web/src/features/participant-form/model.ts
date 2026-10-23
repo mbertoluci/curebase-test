@@ -13,6 +13,7 @@ import {
   roundBmi,
   Unit,
 } from '@org/contracts';
+import type { NormalizedError } from '@/shared/api-error';
 
 /**
  * The form's raw string state (inputs are strings) plus the pure functions that
@@ -145,6 +146,55 @@ export function convertToUnit(values: FormValues, to: Unit): FormValues {
 }
 
 export type FieldErrors = Partial<Record<keyof FormValues | 'form', string>>;
+
+/** The server field names the create/update endpoint can report errors on
+ * (the DTO fields). Passed to the shared error normalizer as its allow-list. */
+export const PARTICIPANT_FIELDS = [
+  'firstName',
+  'lastName',
+  'email',
+  'phone',
+  'weight',
+  'height',
+  'unit',
+  'age',
+] as const;
+export type ParticipantField = (typeof PARTICIPANT_FIELDS)[number];
+
+/** Field names shared verbatim between the API and the form state. */
+const DIRECT_FIELDS = [
+  'firstName',
+  'lastName',
+  'email',
+  'phone',
+  'weight',
+  'age',
+] as const;
+
+/**
+ * Project a normalized API error onto the form's field-error shape. Most fields
+ * map by name; `height` is a single server field that the form renders as two
+ * controls (feet/inches in US, cm in metric), so its message attaches to the
+ * visible one, and `unit` (no dedicated control) falls to the form-level banner
+ * alongside any other non-field message.
+ */
+export function toFormErrors(
+  error: NormalizedError<ParticipantField>,
+  unit: Unit,
+): FieldErrors {
+  const { fieldErrors, formError } = error;
+  const out: FieldErrors = {};
+  for (const field of DIRECT_FIELDS) {
+    const message = fieldErrors[field];
+    if (message) out[field] = message;
+  }
+  if (fieldErrors.height) {
+    out[unit === Unit.US ? 'feet' : 'heightCm'] = fieldErrors.height;
+  }
+  const banner = [formError, fieldErrors.unit].filter(Boolean).join(' · ');
+  if (banner) out.form = banner;
+  return out;
+}
 
 /** Client-side validation (mirrors the server; the server remains authoritative). */
 export function validate(values: FormValues): {
