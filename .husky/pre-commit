@@ -1,3 +1,5 @@
-# Format staged files, then validate everything the change affects.
+# Format staged files, then validate everything the change affects. The cache is
+# skipped so a clean verification runs each time and the Nx cache-write path -
+# which can flake on its internal store - is never hit.
 npx lint-staged
-npx nx affected -t typecheck lint test --parallel=3
+npx nx affected -t typecheck lint test --parallel=3 --skip-nx-cache
