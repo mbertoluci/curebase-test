@@ -56,22 +56,23 @@ export type SortDirection = 'asc' | 'desc';
 export const DEFAULT_SORT_FIELD: ParticipantSortField = 'createdAt';
 export const DEFAULT_SORT_DIR: SortDirection = 'desc';
 
-/**
- * The allow-listed sort fields and directions, shared so the API's runtime
- * validation list is a single source of truth with the types above (the
- * `satisfies` keeps them in lock-step - adding a field to the type without
- * listing it here is a compile error).
- */
-export const PARTICIPANT_SORT_FIELDS = [
-  'createdAt',
-  'bmiValue',
-  'age',
-  'lastName',
-] as const satisfies readonly ParticipantSortField[];
-export const SORT_DIRECTIONS = [
-  'asc',
-  'desc',
-] as const satisfies readonly SortDirection[];
+/** Exhaustive sets: missing or unknown keys fail compilation against the unions. */
+const PARTICIPANT_SORT_FIELD_SET = {
+  createdAt: true,
+  bmiValue: true,
+  age: true,
+  lastName: true,
+} as const satisfies Record<ParticipantSortField, true>;
+const SORT_DIRECTION_SET = {
+  asc: true,
+  desc: true,
+} as const satisfies Record<SortDirection, true>;
+
+/** Runtime allow-lists are derived from the exhaustive sets, preserving order. */
+export const PARTICIPANT_SORT_FIELDS: readonly ParticipantSortField[] =
+  Object.keys(PARTICIPANT_SORT_FIELD_SET) as ParticipantSortField[];
+export const SORT_DIRECTIONS: readonly SortDirection[] =
+  Object.keys(SORT_DIRECTION_SET) as SortDirection[];
 
 /**
  * Canonical email form. Email is treated case-insensitively (and trimmed), so
