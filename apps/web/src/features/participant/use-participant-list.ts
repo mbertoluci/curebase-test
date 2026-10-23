@@ -78,7 +78,12 @@ export function useParticipantList() {
   // Debounced reload whenever the query (or a manual refresh) changes.
   useEffect(() => {
     const handle = setTimeout(() => load(query), LIST_DEBOUNCE_MS);
-    return () => clearTimeout(handle);
+    return () => {
+      clearTimeout(handle);
+      // Invalidate any already-started load so a response for the superseded
+      // query can't land during the next debounce window (monotonic guard).
+      loadSeq.current += 1;
+    };
   }, [query, refresh, load]);
 
   // Auto-dismiss the toast.

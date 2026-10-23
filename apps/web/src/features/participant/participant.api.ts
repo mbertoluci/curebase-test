@@ -35,6 +35,10 @@ function asView(body: unknown): ParticipantView {
     !v ||
     typeof v.id !== 'string' ||
     typeof v.email !== 'string' ||
+    typeof v.unit !== 'string' ||
+    typeof v.weight !== 'number' ||
+    typeof v.height !== 'number' ||
+    typeof v.age !== 'number' ||
     typeof v.bmiValue !== 'number'
   ) {
     invalid('a participant');
@@ -57,6 +61,9 @@ function asPage(body: unknown): Paginated<ParticipantView> {
   ) {
     invalid('a participant list');
   }
+  // Validate each row too: a single malformed record would otherwise crash the
+  // table on render (e.g. formatBmi on a missing bmiValue).
+  for (const row of (body as Paginated<ParticipantView>).data) asView(row);
   return body as Paginated<ParticipantView>;
 }
 

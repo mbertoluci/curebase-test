@@ -21,18 +21,17 @@ export class ApiError extends Error {
  * Feature API modules build their endpoints on top of this.
  */
 export async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  // Normalize the caller's headers (plain object, array or Headers) and add a
+  // JSON Content-Type only when we actually send a body - a Content-Type on a
+  // bodyless GET would force a CORS preflight when the API is cross-origin.
+  const headers = new Headers(init?.headers);
+  if (init?.body && !headers.has('content-type')) {
+    headers.set('content-type', 'application/json');
+  }
+
   let res: Response;
   try {
-    res = await fetch(`${BASE_URL}${path}`, {
-      ...init,
-      // Only declare a JSON body when we actually send one; a Content-Type on a
-      // bodyless GET would force a CORS preflight when the API is cross-origin.
-      // Merge (not replace) so a caller's headers keep the content-type.
-      headers: {
-        ...(init?.body ? { 'content-type': 'application/json' } : {}),
-        ...init?.headers,
-      },
-    });
+    res = await fetch(`${BASE_URL}${path}`, { ...init, headers });
   } catch {
     throw new ApiError(
       0,
