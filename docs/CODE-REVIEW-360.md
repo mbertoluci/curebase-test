@@ -4,11 +4,11 @@ Data: 22/10/2026. Revisão multiagente da estrutura do código: design arquitetu
 
 ## Participantes e método
 
-| Agente | Papel | Resultado | Documento |
-|---|---|---|---|
-| **Codex** | Revisão 360 completa e independente (lógica + invariantes + estrutura) | ✅ Concluída - 37 achados (A01-A37) | [`reviews/review-codex.md`](reviews/review-codex.md) |
-| **GLM (GLM-5.3)** | Crítica focada 100% em estrutura de código e arquitetura | ✅ Concluída - 15 achados (G01-G15) | [`reviews/review-glm.md`](reviews/review-glm.md) |
-| **Claude (Opus 4.8)** | Verificação dos achados dos dois + priorização para a entrega + adições | ✅ Concluída | [`reviews/review-claude.md`](reviews/review-claude.md) |
+| Agente                | Papel                                                                   | Resultado                           | Documento                                              |
+| --------------------- | ----------------------------------------------------------------------- | ----------------------------------- | ------------------------------------------------------ |
+| **Codex**             | Revisão 360 completa e independente (lógica + invariantes + estrutura)  | ✅ Concluída - 37 achados (A01-A37) | [`reviews/review-codex.md`](reviews/review-codex.md)   |
+| **GLM (GLM-5.3)**     | Crítica focada 100% em estrutura de código e arquitetura                | ✅ Concluída - 15 achados (G01-G15) | [`reviews/review-glm.md`](reviews/review-glm.md)       |
+| **Claude (Opus 4.8)** | Verificação dos achados dos dois + priorização para a entrega + adições | ✅ Concluída                        | [`reviews/review-claude.md`](reviews/review-claude.md) |
 
 Orquestração via Herdr (agentes em tabs separadas do mesmo workspace). A revisão saiu com **3 perspectivas**: Codex (análise ampla de lógica, invariantes e estrutura), GLM (recorte exclusivo de arquitetura/estrutura, a pedido) e Claude (autor do código, verificando os dois e priorizando). O GLM rodou no modelo `GLM-5.3` do Coding Plan (a primeira tentativa havia caído no `GLM-5.3-Highspeed`, fora do plano).
 
@@ -33,17 +33,17 @@ Os dois agentes convergem no mesmo ponto central: **o risco não está no desenh
 
 ### Corrigir ANTES de enviar (barato + visível na banca)
 
-| # | Achado | Ação | Esforço |
-|---|---|---|---|
-| 1 | **A13** OpenAPI `isArray:true` mente (devolve envelope `{data,pageInfo}`) | DTO de página concreto no `@ApiOkResponse` | ~10 min |
-| 2 | **A01/A03** classificação usa 3 precisões; README diz "classify on unrounded" | Classificar sempre o valor **bruto**, arredondar só na borda; alinhar preview/POST/GET | médio |
-| 3 | **A05** `PartialType` aceita `null` em campo obrigatório → 500 | `PartialType(dto,{skipNullProperties:false})` + manter phone nullable + teste de null por campo | pequeno |
-| 4 | **A15** 404→`PARTICIPANT_NOT_FOUND`/409→`EMAIL_ALREADY_EXISTS`/P2002→email genéricos demais | fallback HTTP com código genérico; reservar códigos de domínio às AppExceptions; checar target do P2002 | pequeno |
-| 5 | **A17** PII (email/nome na query) vaza em `request.url` nos logs; README promete redaction | logar rota sem query + requestId estruturado; **corrigir a frase do README** | pequeno |
-| 6 | **A22** recuperação de duplicado usa `data[0]` de busca por substring → pessoa errada | lookup por email exato normalizado | pequeno |
-| 7 | **A02** BMI de limites extremos estoura `Decimal(5,2)` → 500 | regra explícita (400 antes do banco) ou ampliar para `Decimal(6,2)` | pequeno |
-| 8 | **A33** testes de integração dão `TRUNCATE` no banco do ambiente; pre-commit roda test | guarda de destino (ex.: exigir DB `*_test`) ou banco/schema dedicado | pequeno |
-| 9 | **A35** README mostra cobertura atingida como se fossem os gates (que são menores) | separar "última execução" de "threshold exigido" | ~10 min |
+| #   | Achado                                                                                      | Ação                                                                                                    | Esforço |
+| --- | ------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- | ------- |
+| 1   | **A13** OpenAPI `isArray:true` mente (devolve envelope `{data,pageInfo}`)                   | DTO de página concreto no `@ApiOkResponse`                                                              | ~10 min |
+| 2   | **A01/A03** classificação usa 3 precisões; README diz "classify on unrounded"               | Classificar sempre o valor **bruto**, arredondar só na borda; alinhar preview/POST/GET                  | médio   |
+| 3   | **A05** `PartialType` aceita `null` em campo obrigatório → 500                              | `PartialType(dto,{skipNullProperties:false})` + manter phone nullable + teste de null por campo         | pequeno |
+| 4   | **A15** 404→`PARTICIPANT_NOT_FOUND`/409→`EMAIL_ALREADY_EXISTS`/P2002→email genéricos demais | fallback HTTP com código genérico; reservar códigos de domínio às AppExceptions; checar target do P2002 | pequeno |
+| 5   | **A17** PII (email/nome na query) vaza em `request.url` nos logs; README promete redaction  | logar rota sem query + requestId estruturado; **corrigir a frase do README**                            | pequeno |
+| 6   | **A22** recuperação de duplicado usa `data[0]` de busca por substring → pessoa errada       | lookup por email exato normalizado                                                                      | pequeno |
+| 7   | **A02** BMI de limites extremos estoura `Decimal(5,2)` → 500                                | regra explícita (400 antes do banco) ou ampliar para `Decimal(6,2)`                                     | pequeno |
+| 8   | **A33** testes de integração dão `TRUNCATE` no banco do ambiente; pre-commit roda test      | guarda de destino (ex.: exigir DB `*_test`) ou banco/schema dedicado                                    | pequeno |
+| 9   | **A35** README mostra cobertura atingida como se fossem os gates (que são menores)          | separar "última execução" de "threshold exigido"                                                        | ~10 min |
 
 ### Consistência de contrato (médio)
 
@@ -53,15 +53,15 @@ Os dois agentes convergem no mesmo ponto central: **o risco não está no desenh
 
 O GLM, revisando só a estrutura, trouxe achados que o recorte de lógica do Codex não cobriu. Confirmei cada um contra o código:
 
-| # | Achado | Ação | Esforço |
-|---|---|---|---|
-| G05 | deps entre projetos **não declaradas** nos `package.json` dos apps (`@org/contracts`, `@prisma/client`, class-validator/transformer, swagger, pino, config só resolvem por hoisting) → grafo do Nx cego à aresta `api→contracts` | declarar `"@org/contracts":"*"` + libs de runtime nos dois apps | pequeno |
-| G06 | `@nx/enforce-module-boundaries` é **no-op** (`sourceTag:'*'→['*']`) → fronteiras do desenho não são impostas | taggear `libs/contracts` como `scope:shared` e `scope:app→[scope:shared]`, `scope:shared→[]` | pequeno |
-| G02 | `repository.list` abre `$transaction` próprio, contrariando "service é dona da fronteira de transação" | documentar a exceção de read-consistency OU mover count+page | ~5 min |
-| G11 | `ConfigModule.forRoot({isGlobal})` registrado mas **bypassado** - tudo lê `process.env` direto, ninguém injeta `ConfigService` | escolher um caminho: ou remover o `ConfigModule`, ou migrar as leituras para `ConfigService` | pequeno |
-| G12 | `form-model.spec.ts` isolado em `apps/web/specs/` enquanto todo o resto é colocalizado em `src/` | mover para `apps/web/src/lib/form-model.spec.ts` | ~2 min |
-| G08 | `UpdateParticipantData = Partial<CreateParticipantData>` reabre `bmiValue` (derivado no server) como input | separar `bmiValue` derivado do patch de input no tipo | pequeno |
-| G09 | `softDeleteTx` refaz `findFirst` e **engole** o miss (`if(!row) return`), duplicando a invariant que a service já garante | remover o re-check ou fazê-lo lançar | pequeno |
+| #   | Achado                                                                                                                                                                                                                           | Ação                                                                                         | Esforço |
+| --- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- | ------- |
+| G05 | deps entre projetos **não declaradas** nos `package.json` dos apps (`@org/contracts`, `@prisma/client`, class-validator/transformer, swagger, pino, config só resolvem por hoisting) → grafo do Nx cego à aresta `api→contracts` | declarar `"@org/contracts":"*"` + libs de runtime nos dois apps                              | pequeno |
+| G06 | `@nx/enforce-module-boundaries` é **no-op** (`sourceTag:'*'→['*']`) → fronteiras do desenho não são impostas                                                                                                                     | taggear `libs/contracts` como `scope:shared` e `scope:app→[scope:shared]`, `scope:shared→[]` | pequeno |
+| G02 | `repository.list` abre `$transaction` próprio, contrariando "service é dona da fronteira de transação"                                                                                                                           | documentar a exceção de read-consistency OU mover count+page                                 | ~5 min  |
+| G11 | `ConfigModule.forRoot({isGlobal})` registrado mas **bypassado** - tudo lê `process.env` direto, ninguém injeta `ConfigService`                                                                                                   | escolher um caminho: ou remover o `ConfigModule`, ou migrar as leituras para `ConfigService` | pequeno |
+| G12 | `form-model.spec.ts` isolado em `apps/web/specs/` enquanto todo o resto é colocalizado em `src/`                                                                                                                                 | mover para `apps/web/src/lib/form-model.spec.ts`                                             | ~2 min  |
+| G08 | `UpdateParticipantData = Partial<CreateParticipantData>` reabre `bmiValue` (derivado no server) como input                                                                                                                       | separar `bmiValue` derivado do patch de input no tipo                                        | pequeno |
+| G09 | `softDeleteTx` refaz `findFirst` e **engole** o miss (`if(!row) return`), duplicando a invariant que a service já garante                                                                                                        | remover o re-check ou fazê-lo lançar                                                         | pequeno |
 
 G05+G06 são a dupla de maior valor: juntos tornam a arquitetura **enforceável** (hoje é só disciplina). Convergências com o Codex (mesmo achado, outro ângulo): **G01≈A31** (Prisma vaza para service/`common/audit` via `TransactionClient`), **G03≈A15** (filtro global conhece semântica da feature), **G04≈A21/C2** (`@Exists` especulativo sem uso), **G13≈A22** (acesso a dados dentro do `ParticipantForm`).
 

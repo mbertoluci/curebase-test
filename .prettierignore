@@ -4,3 +4,22 @@
 /.nx/cache
 /.nx/workspace-data
 .nx/self-healing
+
+# Build output and generated files (never hand-formatted)
+**/.next
+**/dist
+**/out-tsc
+**/test-output
+apps/web/next-env.d.ts
+package-lock.json
+
+# AI agent tooling (kept locally, not part of the deliverable)
+.cursor/
+.gemini/
+.opencode/
+.codex/
+.agents/
+.github/skills/
+.github/agents/
+.github/prompts/
+opencode.json

@@ -42,7 +42,8 @@ describe('loadConfig', () => {
       logLevel: 'info',
       swagger: {
         title: 'Curebase BMI API',
-        description: 'Participant demographic + health capture with derived BMI',
+        description:
+          'Participant demographic + health capture with derived BMI',
         version: '1.0',
         path: 'docs',
       },

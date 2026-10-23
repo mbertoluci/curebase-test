@@ -12,7 +12,9 @@ describe('Throws', () => {
       }
     }
     expect(() =>
-      decorate(Sample.prototype, 'handler', { value: Sample.prototype.handler }),
+      decorate(Sample.prototype, 'handler', {
+        value: Sample.prototype.handler,
+      }),
     ).not.toThrow();
   });
 });

@@ -44,9 +44,7 @@ async function bootstrap(): Promise<void> {
   await app.listen(config.port);
   app
     .get(Logger)
-    .log(
-      `API ready on http://localhost:${config.port}/${config.globalPrefix}`,
-    );
+    .log(`API ready on http://localhost:${config.port}/${config.globalPrefix}`);
 }
 
 void bootstrap();

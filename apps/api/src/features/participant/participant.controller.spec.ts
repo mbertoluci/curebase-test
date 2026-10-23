@@ -1,8 +1,5 @@
 import { VALIDATION_ERROR_DESCRIPTION } from '../../common/api.constants';
-import {
-  PaginatedParticipantDto,
-  ParticipantDto,
-} from './participant.dto';
+import { PaginatedParticipantDto, ParticipantDto } from './participant.dto';
 import { ParticipantController } from './participant.controller';
 import { ParticipantService } from './participant.service';
 

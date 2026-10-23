@@ -47,7 +47,10 @@ describe('measurementErrors', () => {
   it('flags out-of-range weight, height and age, each tagged with its field', () => {
     const errors = measurementErrors(5000, 5000, Unit.METRIC, 200);
     expect(errors).toEqual([
-      { field: 'weight', message: expect.stringMatching(/between 2 and 500 kg/) },
+      {
+        field: 'weight',
+        message: expect.stringMatching(/between 2 and 500 kg/),
+      },
       {
         field: 'height',
         message: expect.stringMatching(/between 50 and 250 cm/),

@@ -71,8 +71,9 @@ const SORT_DIRECTION_SET = {
 /** Runtime allow-lists are derived from the exhaustive sets, preserving order. */
 export const PARTICIPANT_SORT_FIELDS: readonly ParticipantSortField[] =
   Object.keys(PARTICIPANT_SORT_FIELD_SET) as ParticipantSortField[];
-export const SORT_DIRECTIONS: readonly SortDirection[] =
-  Object.keys(SORT_DIRECTION_SET) as SortDirection[];
+export const SORT_DIRECTIONS: readonly SortDirection[] = Object.keys(
+  SORT_DIRECTION_SET,
+) as SortDirection[];
 
 /**
  * Canonical email form. Email is treated case-insensitively (and trimmed), so

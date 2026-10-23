@@ -68,3 +68,7 @@ test-output
 .agents/
 opencode.json
 docs/reviews/
+# AI agent tooling under .github (kept locally, out of the repo)
+.github/skills/
+.github/agents/
+.github/prompts/
