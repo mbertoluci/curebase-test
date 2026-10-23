@@ -60,6 +60,27 @@ function asPage(body: unknown): Paginated<ParticipantView> {
   return body as Paginated<ParticipantView>;
 }
 
+const ACTOR_HEADER = 'x-actor-id';
+const ACTOR_STORAGE_KEY = 'bmi.actorId';
+
+/**
+ * An ephemeral per-session identifier sent as the audit actor on mutations.
+ * Without authentication this is not a real identity, but it lets the audit log
+ * group a session's changes instead of recording every mutation as 'anonymous'.
+ */
+function actorHeaders(): Record<string, string> {
+  try {
+    let id = sessionStorage.getItem(ACTOR_STORAGE_KEY);
+    if (!id) {
+      id = crypto.randomUUID();
+      sessionStorage.setItem(ACTOR_STORAGE_KEY, id);
+    }
+    return { [ACTOR_HEADER]: id };
+  } catch {
+    return {};
+  }
+}
+
 /** Participant endpoints, built on the shared {@link request} wrapper. */
 export const api = {
   list: (
@@ -73,6 +94,7 @@ export const api = {
     request('/participants', {
       method: 'POST',
       body: JSON.stringify(input),
+      headers: actorHeaders(),
     }).then(asView),
   update: (
     id: string,
@@ -81,7 +103,11 @@ export const api = {
     request(`/participants/${id}`, {
       method: 'PUT',
       body: JSON.stringify(patch),
+      headers: actorHeaders(),
     }).then(asView),
   remove: (id: string): Promise<void> =>
-    request<void>(`/participants/${id}`, { method: 'DELETE' }),
+    request<void>(`/participants/${id}`, {
+      method: 'DELETE',
+      headers: actorHeaders(),
+    }),
 };

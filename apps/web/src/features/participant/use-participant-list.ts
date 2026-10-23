@@ -12,6 +12,7 @@ import {
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { LIST_DEBOUNCE_MS, TOAST_DISMISS_MS } from '../../shared/constants';
 import { ApiError } from '../../shared/http';
+import { reportError } from '../../shared/report-error';
 import { api } from './participant.api';
 
 const DEFAULT_QUERY: ListParticipantQuery = {
@@ -62,6 +63,7 @@ export function useParticipantList() {
       setPage(result);
     } catch (err) {
       if (seq !== loadSeq.current) return;
+      if (!(err instanceof ApiError)) reportError(err, 'participant-list');
       setError(
         err instanceof ApiError ? err.message : 'Could not load participants.',
       );

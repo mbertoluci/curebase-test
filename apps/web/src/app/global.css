@@ -17,11 +17,17 @@
   --muted: #5d6b7e;
   --primary: #2563eb;
   --primary-ink: #ffffff;
+  /* Button fill: distinct from --primary so the link/focus color stays readable
+     on dark surfaces while the filled button keeps >=4.5:1 against white text. */
+  --primary-btn: var(--primary);
   --danger: #c0392b;
   --band-under: #2f6fb0;
   --band-normal: #2e7d4f;
-  --band-over: #b4791f;
+  --band-over: #8a5e14; /* darkened so white text clears WCAG AA (was #b4791f) */
   --band-obese: #b4433a;
+  /* Text drawn on a band color (chips, success toast); flips in dark mode so it
+     stays legible on the lighter dark-theme band pastels. */
+  --on-band: #ffffff;
   --shadow: 0 1px 2px rgba(16, 24, 40, 0.06), 0 1px 3px rgba(16, 24, 40, 0.08);
 }
 
@@ -33,11 +39,13 @@
     --text: #e8edf4;
     --muted: #9aa7b6;
     --primary: #4f8cff;
+    --primary-btn: #2f6bed;
     --shadow: none;
     --band-under: #5fa0db;
     --band-normal: #5fc487;
     --band-over: #e0b15f;
     --band-obese: #e8847b;
+    --on-band: #10151c;
   }
 }
 
@@ -48,13 +56,17 @@
   --color-muted: var(--muted);
   --color-primary: var(--primary);
   --color-primary-ink: var(--primary-ink);
+  --color-primary-btn: var(--primary-btn);
   --color-danger: var(--danger);
+  --color-on-band: var(--on-band);
   --color-band-under: var(--band-under);
   --color-band-normal: var(--band-normal);
   --color-band-over: var(--band-over);
   --color-band-obese: var(--band-obese);
   --radius-card: 10px;
   --shadow-card: var(--shadow);
+  --shadow-toast: 0 6px 24px rgba(0, 0, 0, 0.2);
+  --breakpoint-tablet: 760px;
   --font-sans:
     -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial,
     sans-serif;

@@ -11,7 +11,7 @@ export function BandChip({ band }: { band: BmiBand | null }) {
     <span
       data-band={key}
       className={cx(
-        'inline-block rounded-full px-2 py-0.5 text-[0.74rem] font-semibold text-white',
+        'inline-block rounded-full px-2 py-0.5 text-[0.74rem] font-semibold text-on-band',
         color,
       )}
     >

@@ -9,6 +9,7 @@ import {
 import { useEffect, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import { ApiError } from '../../shared/http';
+import { reportError } from '../../shared/report-error';
 import { Button, Field, Input, Notice, cardSurface, cx } from '../../shared/ui';
 import { api } from './participant.api';
 import { formatBmi, weightUnit } from './participant.display';
@@ -143,6 +144,7 @@ export function ParticipantForm({
 
   async function handleError(error: unknown) {
     if (!(error instanceof ApiError)) {
+      reportError(error, 'participant-save');
       setServerError('Something went wrong. Please try again.');
       return;
     }
@@ -166,8 +168,10 @@ export function ParticipantForm({
         if (normalizeEmail(emailRef.current) !== query) return;
         const exact = page.data.find((p) => normalizeEmail(p.email) === query);
         setDuplicate(exact ?? null);
-      } catch {
-        /* non-fatal: the inline message is enough */
+      } catch (lookupError) {
+        // Non-fatal for the user (the inline message is enough), but still
+        // leaves a trail instead of vanishing silently.
+        reportError(lookupError, 'duplicate-lookup');
       }
       return;
     }
@@ -193,7 +197,7 @@ export function ParticipantForm({
 
       <fieldset className="mb-[18px] border-0 p-0" disabled={submitting}>
         <legend className={LEGEND}>Demographics</legend>
-        <div className="grid grid-cols-2 gap-[14px] max-[760px]:grid-cols-1">
+        <div className="grid grid-cols-2 gap-[14px] max-tablet:grid-cols-1">
           <Field id="firstName" label="First name" error={errors.firstName}>
             <Input
               id="firstName"
@@ -261,7 +265,7 @@ export function ParticipantForm({
           ))}
         </div>
 
-        <div className="grid grid-cols-3 gap-[14px] max-[760px]:grid-cols-1">
+        <div className="grid grid-cols-3 gap-[14px] max-tablet:grid-cols-1">
           <Field
             id="weight"
             label={`Weight (${weightUnit(values.unit)})`}
