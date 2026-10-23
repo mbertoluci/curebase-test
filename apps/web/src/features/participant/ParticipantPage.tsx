@@ -64,10 +64,12 @@ export function ParticipantPage() {
 
       {toast && (
         <div
-          role="status"
+          role={toast.kind === 'error' ? 'alert' : 'status'}
           className={cx(
-            'fixed bottom-6 left-1/2 -translate-x-1/2 rounded-[10px] px-5 py-3 text-white shadow-[0_6px_24px_rgba(0,0,0,0.2)]',
-            toast.kind === 'success' ? 'bg-band-normal' : 'bg-danger',
+            'fixed bottom-6 left-1/2 -translate-x-1/2 rounded-card px-5 py-3 shadow-toast',
+            toast.kind === 'success'
+              ? 'bg-band-normal text-on-band'
+              : 'bg-danger text-white',
           )}
         >
           {toast.message}

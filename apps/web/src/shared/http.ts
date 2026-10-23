@@ -24,10 +24,14 @@ export async function request<T>(path: string, init?: RequestInit): Promise<T> {
   let res: Response;
   try {
     res = await fetch(`${BASE_URL}${path}`, {
+      ...init,
       // Only declare a JSON body when we actually send one; a Content-Type on a
       // bodyless GET would force a CORS preflight when the API is cross-origin.
-      headers: init?.body ? { 'content-type': 'application/json' } : undefined,
-      ...init,
+      // Merge (not replace) so a caller's headers keep the content-type.
+      headers: {
+        ...(init?.body ? { 'content-type': 'application/json' } : {}),
+        ...init?.headers,
+      },
     });
   } catch {
     throw new ApiError(

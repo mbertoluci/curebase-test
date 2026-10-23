@@ -18,6 +18,7 @@ const config = {
     'src/**/*.{ts,tsx}',
     '!src/**/*.spec.{ts,tsx}',
     '!src/app/layout.tsx', // trivial root layout
+    '!src/app/error.tsx', // framework error boundary
   ],
   coverageThreshold: {
     global: { statements: 93, branches: 85, functions: 88, lines: 94 },

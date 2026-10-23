@@ -6,7 +6,7 @@ import {
   ParticipantView,
   SortDirection,
 } from '@org/contracts';
-import { Button, Notice } from '../../shared/ui';
+import { Button, Notice, Select, cx } from '../../shared/ui';
 import {
   formatBmi,
   formatDate,
@@ -42,9 +42,9 @@ const TH =
 // the table stacks into cards below 760px.
 const TD =
   'border-b border-border px-3 py-2.5 text-left whitespace-nowrap ' +
-  'max-[760px]:flex max-[760px]:justify-between max-[760px]:gap-4 max-[760px]:whitespace-normal ' +
-  'max-[760px]:border-0 max-[760px]:py-1.5 max-[760px]:before:font-semibold ' +
-  'max-[760px]:before:text-muted max-[760px]:before:content-[attr(data-label)]';
+  'max-tablet:flex max-tablet:justify-between max-tablet:gap-4 max-tablet:whitespace-normal ' +
+  'max-tablet:border-0 max-tablet:py-1.5 max-tablet:before:font-semibold ' +
+  'max-tablet:before:text-muted max-tablet:before:content-[attr(data-label)]';
 
 const STATE = 'p-7 text-center text-muted';
 
@@ -103,9 +103,40 @@ export function ParticipantsTable({
 
   return (
     <>
-      <div className="overflow-x-auto">
-        <table className="w-full border-collapse text-[0.9rem] max-[760px]:block">
-          <thead className="max-[760px]:hidden">
+      {/* The column headers (and their sort controls) are hidden once the table
+          stacks into cards, so expose sorting as an explicit control on mobile. */}
+      <div className="mb-3 hidden items-end gap-2 max-tablet:flex">
+        <label className="flex flex-col gap-[5px] text-[0.83rem] text-muted">
+          Sort by
+          <Select
+            id="mobile-sort"
+            name="mobile-sort"
+            className="w-auto"
+            value={sortBy}
+            onChange={(e) => onSort(e.target.value as ParticipantSortField)}
+          >
+            {Object.entries(SORTABLE).map(([field, label]) => (
+              <option key={field} value={field}>
+                {label}
+              </option>
+            ))}
+          </Select>
+        </label>
+        <Button
+          variant="ghost"
+          onClick={() => onSort(sortBy)}
+          aria-label={`Sorted ${sortDir === 'asc' ? 'ascending' : 'descending'}, toggle direction`}
+        >
+          {sortDir === 'asc' ? '▲ Asc' : '▼ Desc'}
+        </Button>
+      </div>
+
+      <div
+        className={cx('overflow-x-auto', loading && 'opacity-60')}
+        aria-busy={loading}
+      >
+        <table className="w-full border-collapse text-[0.9rem] max-tablet:block">
+          <thead className="max-tablet:hidden">
             <tr>
               {header('lastName', SORTABLE.lastName)}
               <th scope="col" className={TH}>
@@ -131,11 +162,11 @@ export function ParticipantsTable({
               </th>
             </tr>
           </thead>
-          <tbody className="max-[760px]:block">
+          <tbody className="max-tablet:block">
             {data.map((p) => (
               <tr
                 key={p.id}
-                className="max-[760px]:mb-3 max-[760px]:block max-[760px]:rounded-lg max-[760px]:border max-[760px]:border-border max-[760px]:px-2.5 max-[760px]:py-1.5"
+                className="max-tablet:mb-3 max-tablet:block max-tablet:rounded-lg max-tablet:border max-tablet:border-border max-tablet:px-2.5 max-tablet:py-1.5"
               >
                 <td className={TD} data-label="Name">
                   {p.firstName} {p.lastName}
