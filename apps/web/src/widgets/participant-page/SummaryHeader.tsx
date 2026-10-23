@@ -61,20 +61,17 @@ export function SummaryHeader({ page }: Props) {
     rows.filter((r) => r.bmiBand === band).length;
 
   return (
-    <div className="flex flex-col gap-5">
-      <div
-        className="flex items-center gap-4 rounded-card px-5 py-6"
-        style={{ background: 'var(--gradient-header)' }}
-      >
-        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-white/60 text-ink/50 shadow-sm backdrop-blur">
-          <PersonGlyph className="h-9 w-9" />
+    <div className="flex flex-col gap-6">
+      <div className="flex items-center gap-4 border-b border-border pb-5">
+        <div className="flex h-14 w-14 items-center justify-center rounded-full bg-primary/10 text-primary">
+          <PersonGlyph className="h-8 w-8" />
         </div>
         <div className="min-w-0">
-          <h2 className="truncate text-[26px] font-bold leading-tight text-[#1c1c1e]">
+          <h2 className="truncate text-[26px] font-bold leading-tight tracking-tight text-ink">
             Participants
           </h2>
-          <p className="text-[14px] font-medium text-[#1c1c1e]/55">
-            BMI capture · Last updated today
+          <p className="text-[14px] font-medium text-muted">
+            BMI capture and classification
           </p>
         </div>
       </div>

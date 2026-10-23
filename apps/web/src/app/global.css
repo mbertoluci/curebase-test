@@ -4,29 +4,35 @@
 @source '../**/*.{ts,tsx}';
 
 /*
- * A Health-app-inspired visual language: a grouped light-gray background, white
- * rounded cards, SF-style system typography, and the iOS system accent palette.
- * Tokens are plain CSS variables so the dark theme swaps the *values* under one
- * media query; @theme inline maps them to Tailwind utilities.
+ * A clean, clinical light theme: a true-white canvas, white cards separated by
+ * hairline borders and one soft shadow (no gray fills), neutral system
+ * typography, and a single confident blue with a harmonious, AA-legible
+ * category palette. Tokens are plain CSS variables; @theme inline maps them to
+ * Tailwind utilities. There is deliberately no dark theme - the surface stays
+ * white in every environment.
  */
 :root {
-  --bg: #f2f2f7; /* iOS systemGroupedBackground */
+  --bg: #ffffff; /* page canvas */
   --surface: #ffffff; /* card */
-  --surface-2: #ffffff; /* secondary card / sidebar */
-  --border: #e5e5ea; /* separator / systemGray5 */
-  --ink: #1c1c1e; /* label */
-  --muted: #8e8e93; /* secondaryLabel / systemGray */
-  --faint: #c7c7cc; /* tertiary / systemGray3 */
+  --surface-2: #f6f7f9; /* subtle fill: search, hover, ghost button */
+  --border: #e5e7eb; /* hairline separator */
+  --ink: #111827; /* primary text */
+  --muted: #6b7280; /* secondary text */
+  --faint: #9ca3af; /* placeholder / tertiary */
 
-  /* iOS system colors */
-  --blue: #007aff;
-  --red: #ff3b30;
-  --orange: #ff9500;
-  --green: #34c759;
-  --teal: #5ac8fa;
-  --purple: #af52de;
-  --pink: #ff2d55;
-  --indigo: #5856d6;
+  /*
+   * One confident primary, plus a category palette tuned to a single lightness
+   * band (~"600" tone): saturated enough to carry meaning, dark enough to pass
+   * AA as text on white, and calm enough to sit together without vibrating.
+   */
+  --blue: #2563eb;
+  --red: #dc2626;
+  --orange: #d97706;
+  --green: #16a34a;
+  --teal: #0891b2;
+  --purple: #7c3aed;
+  --indigo: #4f46e5;
+  --pink: #db2777;
 
   /* Semantic aliases used across the UI */
   --primary: var(--blue);
@@ -34,49 +40,14 @@
   --primary-ink: #ffffff;
   --danger: var(--red);
 
-  /* BMI bands mapped to health accent colors (shown as tinted labels, not filled). */
+  /* BMI bands mapped to the category palette (shown as tinted labels). */
   --band-under: var(--teal);
   --band-normal: var(--green);
   --band-over: var(--orange);
   --band-obese: var(--red);
 
-  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.04), 0 4px 16px rgba(0, 0, 0, 0.04);
-  /* The soft Health summary-header gradient. */
-  --gradient-header: linear-gradient(
-    120deg,
-    #ffd9e8 0%,
-    #ffe3c2 38%,
-    #e9d7ff 72%,
-    #d6e4ff 100%
-  );
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #000000;
-    --surface: #1c1c1e; /* secondarySystemGroupedBackground dark */
-    --surface-2: #1c1c1e;
-    --border: #38383a; /* separator dark */
-    --ink: #ffffff;
-    --muted: #8e8e93;
-    --faint: #48484a;
-    --blue: #0a84ff;
-    --red: #ff453a;
-    --orange: #ff9f0a;
-    --green: #30d158;
-    --teal: #64d2ff;
-    --purple: #bf5af2;
-    --pink: #ff375f;
-    --indigo: #5e5ce6;
-    --shadow-card: none;
-    --gradient-header: linear-gradient(
-      120deg,
-      #3a2230 0%,
-      #3a2e1e 40%,
-      #2c2340 72%,
-      #1f2a3a 100%
-    );
-  }
+  --shadow-card:
+    0 1px 2px rgba(16, 24, 40, 0.04), 0 1px 3px rgba(16, 24, 40, 0.06);
 }
 
 @theme inline {
@@ -106,10 +77,10 @@
   --color-band-over: var(--band-over);
   --color-band-obese: var(--band-obese);
 
-  --radius-card: 18px;
-  --radius-field: 12px;
+  --radius-card: 16px;
+  --radius-field: 10px;
   --shadow-card: var(--shadow-card);
-  --shadow-toast: 0 8px 30px rgba(0, 0, 0, 0.18);
+  --shadow-toast: 0 8px 30px rgba(16, 24, 40, 0.16);
   --breakpoint-tablet: 860px;
   --font-sans:
     -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display',
