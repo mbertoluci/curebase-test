@@ -51,7 +51,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   }
   // A 2xx that should carry JSON but didn't (unreadable body, or an HTML page
   // from a proxy) must not be handed back as a bogus T - fail with a clear code.
-  if (body === null || typeof body !== 'object') {
+  if (body === null || typeof body !== 'object' || Array.isArray(body)) {
     throw new ApiError(
       res.status,
       'INVALID_RESPONSE',

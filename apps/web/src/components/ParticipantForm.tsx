@@ -1,7 +1,13 @@
 'use client';
 
 import { normalizeEmail, ParticipantView, Unit } from '@org/contracts';
-import { cloneElement, isValidElement, useEffect, useRef, useState } from 'react';
+import {
+  cloneElement,
+  isValidElement,
+  useEffect,
+  useRef,
+  useState,
+} from 'react';
 import type { ReactElement, ReactNode } from 'react';
 import { api, ApiError } from '../lib/api';
 import { formatBmi, weightUnit } from '../lib/display';
@@ -34,6 +40,7 @@ export function ParticipantForm({
   const [serverError, setServerError] = useState<string | null>(null);
   const [duplicate, setDuplicate] = useState<ParticipantView | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const submitInFlight = useRef(false);
   // Latest email shown in the form, readable from an async handler after the
   // render-time closure has gone stale (the duplicate lookup below).
   const emailRef = useRef(values.email);
@@ -55,11 +62,12 @@ export function ParticipantForm({
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
-    if (submitting) return; // ignore a re-submit (e.g. Enter) while one is in flight
+    if (submitInFlight.current) return; // synchronous guard, including before React renders
     const { input, errors: validationErrors } = validate(values);
     setErrors(validationErrors);
     if (!input) return;
 
+    submitInFlight.current = true;
     setSubmitting(true);
     setServerError(null);
     setDuplicate(null);
@@ -72,6 +80,7 @@ export function ParticipantForm({
     } catch (error) {
       await handleError(error);
     } finally {
+      submitInFlight.current = false;
       setSubmitting(false);
     }
   }
@@ -203,6 +212,8 @@ export function ParticipantForm({
             <Field id="feet" label="Height (ft / in)" error={errors.feet}>
               <div className="inline">
                 <input
+                  aria-invalid={errors.feet ? true : undefined}
+                  aria-describedby={errors.feet ? 'feet-error' : undefined}
                   id="feet"
                   type="number"
                   min="0"
@@ -211,6 +222,8 @@ export function ParticipantForm({
                   onChange={(e) => set('feet')(e.target.value)}
                 />
                 <input
+                  aria-invalid={errors.feet ? true : undefined}
+                  aria-describedby={errors.feet ? 'feet-error' : undefined}
                   aria-label="inches"
                   type="number"
                   min="0"
@@ -276,6 +289,11 @@ export function ParticipantForm({
           </button>
         </div>
       )}
+      {errors.form && (
+        <div className="notice notice--error" role="alert">
+          {errors.form}
+        </div>
+      )}
       {serverError && <div className="notice notice--error">{serverError}</div>}
 
       <div className="form__actions">
@@ -309,9 +327,11 @@ function Field({
 }) {
   // Wire the control to its error so screen readers announce invalidity and
   // read the message (aria-invalid + aria-describedby). When the field wraps a
-  // single control we inject them; a compound field keeps the role="alert".
+  // single native control we inject them; compound controls wire each input above.
   const control =
-    error && isValidElement(children)
+    error &&
+    isValidElement(children) &&
+    ['input', 'select', 'textarea'].includes(children.type as string)
       ? cloneElement(children as ReactElement<Record<string, unknown>>, {
           'aria-invalid': true,
           'aria-describedby': `${id}-error`,
