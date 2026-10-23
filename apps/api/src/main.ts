@@ -10,7 +10,7 @@ async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(AppModule, { bufferLogs: true });
   app.useLogger(app.get(Logger));
 
-  // Security headers (nosniff, frame deny, HSTS, ...). CSP is left off: this is
+  // Security headers (nosniff, SAMEORIGIN framing, HSTS, ...). CSP is left off: this is
   // a JSON API and the only HTML it serves is the dev Swagger UI, which needs a
   // relaxed CSP; a browser-facing app would ship a real content-security-policy.
   app.use(helmet({ contentSecurityPolicy: false }));

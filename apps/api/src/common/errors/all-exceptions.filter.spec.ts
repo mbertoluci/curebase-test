@@ -13,6 +13,7 @@ import {
   ParticipantNotFoundError,
 } from '../../features/participants/participants.error';
 import { AllExceptionsFilter } from './all-exceptions.filter';
+import { AppException } from './app-exception';
 
 describe('AllExceptionsFilter', () => {
   const filter = new AllExceptionsFilter();
@@ -129,6 +130,25 @@ describe('AllExceptionsFilter', () => {
     expect(JSON.stringify(body)).not.toContain('ada');
     expect(JSON.stringify(body)).not.toContain('search');
   });
+
+  it.each([HttpStatus.INTERNAL_SERVER_ERROR, HttpStatus.SERVICE_UNAVAILABLE])(
+    'never echoes a %s AppException message/details to the client',
+    (httpStatus) => {
+      class InternalDomainError extends AppException {}
+      const body = run(
+        new InternalDomainError(
+          ErrorCode.INTERNAL_ERROR,
+          httpStatus,
+          'sensitive internal message',
+          { secret: 'sensitive internal details' },
+        ),
+      );
+      expect(body.statusCode).toBe(httpStatus);
+      expect(body.message).toBe('An unexpected error occurred');
+      expect(body.details).toBeUndefined();
+      expect(JSON.stringify(body)).not.toContain('sensitive');
+    },
+  );
 
   it('never echoes a 5xx HttpException message/details to the client', () => {
     const body = run(
