@@ -10,10 +10,10 @@ import {
   ParticipantView,
 } from '@org/contracts';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { LIST_DEBOUNCE_MS, TOAST_DISMISS_MS } from '../../shared/constants';
-import { ApiError } from '../../shared/http';
-import { reportError } from '../../shared/report-error';
-import { api } from './participant.api';
+import { LIST_DEBOUNCE_MS, TOAST_DISMISS_MS } from '@/shared/constants';
+import { ApiError } from '@/shared/http';
+import { reportError } from '@/shared/report-error';
+import { api } from '@/entities/participant';
 
 const DEFAULT_QUERY: ListParticipantQuery = {
   page: 1,

@@ -6,11 +6,11 @@ import {
   waitFor,
   act,
 } from '@testing-library/react';
-import { ApiError } from '../../shared/http';
-import { api } from './participant.api';
+import { ApiError } from '@/shared/http';
+import { api } from '@/entities/participant/api';
 import { ParticipantForm } from './ParticipantForm';
 
-jest.mock('./participant.api', () => ({
+jest.mock('@/entities/participant/api', () => ({
   __esModule: true,
   api: { create: jest.fn(), update: jest.fn(), list: jest.fn() },
 }));

@@ -6,15 +6,15 @@ import {
   ParticipantView,
   SortDirection,
 } from '@org/contracts';
-import { Button, Notice, Select, cx } from '../../shared/ui';
+import { Button, Notice, Select, cx } from '@/shared/ui';
 import {
+  BandChip,
   formatBmi,
   formatDate,
   heightLabel,
   unitLabel,
   weightUnit,
-} from './participant.display';
-import { BandChip } from './BandChip';
+} from '@/entities/participant';
 
 interface Props {
   page: Paginated<ParticipantView> | null;

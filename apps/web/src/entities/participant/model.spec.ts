@@ -5,7 +5,7 @@ import {
   fromView,
   livePreview,
   validate,
-} from './participant.model';
+} from './model';
 
 describe('form-model', () => {
   const usForm = {
