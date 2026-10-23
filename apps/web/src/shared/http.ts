@@ -1,10 +1,13 @@
 import type { ApiErrorBody } from '@org/contracts';
 
-// One public API base, used by the browser and (same-origin on localhost) by the
-// server. A cross-origin container deploy where the server reaches the API by an
-// internal address would add a server-only URL; that belongs with the deployment
-// config, not hard-wired here.
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3333/api';
+// The browser always uses NEXT_PUBLIC_API_URL (inlined at build time). The
+// server (SSR) prefers API_INTERNAL_URL when set - in Docker the web container
+// reaches the API by its service name (http://api:3333/api), not localhost.
+// Both are set explicitly in docker-compose, so there is no silent fallback.
+const BASE_URL =
+  process.env.API_INTERNAL_URL ??
+  process.env.NEXT_PUBLIC_API_URL ??
+  'http://localhost:3333/api';
 
 /** Error carrying the API's machine code, so the UI can branch on it. */
 export class ApiError extends Error {
