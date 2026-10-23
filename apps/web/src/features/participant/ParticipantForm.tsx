@@ -6,16 +6,11 @@ import {
   ParticipantView,
   Unit,
 } from '@org/contracts';
-import {
-  cloneElement,
-  isValidElement,
-  useEffect,
-  useRef,
-  useState,
-} from 'react';
-import type { ReactElement, ReactNode } from 'react';
-import { api } from './participant.api';
+import { useEffect, useRef, useState } from 'react';
+import type { FormEvent } from 'react';
 import { ApiError } from '../../shared/http';
+import { Button, Field, Input, Notice, cardSurface, cx } from '../../shared/ui';
+import { api } from './participant.api';
 import { formatBmi, weightUnit } from './participant.display';
 import {
   convertToUnit,
@@ -34,6 +29,9 @@ interface Props {
   onCancelEdit: () => void;
   onRequestEdit: (view: ParticipantView) => void;
 }
+
+const LEGEND =
+  'mb-2.5 text-[0.78rem] font-semibold uppercase tracking-[0.04em] text-muted';
 
 export function ParticipantForm({
   editing,
@@ -66,7 +64,7 @@ export function ParticipantForm({
   const set = (field: keyof FormValues) => (value: string) =>
     setValues((prev) => ({ ...prev, [field]: value }));
 
-  async function handleSubmit(event: React.FormEvent) {
+  async function handleSubmit(event: FormEvent) {
     event.preventDefault();
     if (submitInFlight.current) return; // synchronous guard, including before React renders
     const { input, errors: validationErrors } = validate(values);
@@ -129,39 +127,37 @@ export function ParticipantForm({
   }
 
   return (
-    <form className="card form" onSubmit={handleSubmit} noValidate>
-      <div className="form__header">
-        <h2>{editing ? 'Edit participant' : 'New participant'}</h2>
+    <form className={cardSurface} onSubmit={handleSubmit} noValidate>
+      <div className="mb-3 flex items-center justify-between">
+        <h2 className="text-[1.15rem] font-semibold">
+          {editing ? 'Edit participant' : 'New participant'}
+        </h2>
         {editing && (
-          <button
-            type="button"
-            className="btn btn--ghost"
-            onClick={onCancelEdit}
-          >
+          <Button variant="ghost" onClick={onCancelEdit}>
             Cancel edit
-          </button>
+          </Button>
         )}
       </div>
 
-      <fieldset>
-        <legend>Demographics</legend>
-        <div className="grid grid--2">
+      <fieldset className="mb-[18px] border-0 p-0">
+        <legend className={LEGEND}>Demographics</legend>
+        <div className="grid grid-cols-2 gap-[14px] max-[760px]:grid-cols-1">
           <Field id="firstName" label="First name" error={errors.firstName}>
-            <input
+            <Input
               id="firstName"
               value={values.firstName}
               onChange={(e) => set('firstName')(e.target.value)}
             />
           </Field>
           <Field id="lastName" label="Last name" error={errors.lastName}>
-            <input
+            <Input
               id="lastName"
               value={values.lastName}
               onChange={(e) => set('lastName')(e.target.value)}
             />
           </Field>
           <Field id="email" label="Email" error={errors.email}>
-            <input
+            <Input
               id="email"
               type="email"
               value={values.email}
@@ -169,7 +165,7 @@ export function ParticipantForm({
             />
           </Field>
           <Field id="phone" label="Phone (optional)" error={errors.phone}>
-            <input
+            <Input
               id="phone"
               value={values.phone}
               onChange={(e) => set('phone')(e.target.value)}
@@ -178,18 +174,28 @@ export function ParticipantForm({
         </div>
       </fieldset>
 
-      <fieldset>
-        <legend>Measurements</legend>
+      <fieldset className="mb-[18px] border-0 p-0">
+        <legend className={LEGEND}>Measurements</legend>
 
-        <div className="units" role="radiogroup" aria-label="Unit system">
+        <div
+          className="mb-3.5 flex gap-2.5"
+          role="radiogroup"
+          aria-label="Unit system"
+        >
           {[Unit.US, Unit.METRIC].map((u) => (
             <label
               key={u}
-              className={`chip-radio ${values.unit === u ? 'is-active' : ''}`}
+              className={cx(
+                'inline-flex cursor-pointer items-center gap-1.5 rounded-full border px-3 py-[7px] text-[0.9rem]',
+                values.unit === u
+                  ? 'border-primary bg-primary/10'
+                  : 'border-border',
+              )}
             >
               <input
                 type="radio"
                 name="unit"
+                className="accent-primary"
                 checked={values.unit === u}
                 onChange={() => setValues((prev) => convertToUnit(prev, u))}
               />
@@ -198,13 +204,13 @@ export function ParticipantForm({
           ))}
         </div>
 
-        <div className="grid grid--3">
+        <div className="grid grid-cols-3 gap-[14px] max-[760px]:grid-cols-1">
           <Field
             id="weight"
             label={`Weight (${weightUnit(values.unit)})`}
             error={errors.weight}
           >
-            <input
+            <Input
               id="weight"
               type="number"
               step="0.1"
@@ -216,8 +222,8 @@ export function ParticipantForm({
 
           {values.unit === Unit.US ? (
             <Field id="feet" label="Height (ft / in)" error={errors.feet}>
-              <div className="inline">
-                <input
+              <div className="flex gap-2">
+                <Input
                   aria-invalid={errors.feet ? true : undefined}
                   aria-describedby={errors.feet ? 'feet-error' : undefined}
                   id="feet"
@@ -227,7 +233,7 @@ export function ParticipantForm({
                   value={values.feet}
                   onChange={(e) => set('feet')(e.target.value)}
                 />
-                <input
+                <Input
                   aria-invalid={errors.feet ? true : undefined}
                   aria-describedby={errors.feet ? 'feet-error' : undefined}
                   aria-label="inches"
@@ -242,7 +248,7 @@ export function ParticipantForm({
             </Field>
           ) : (
             <Field id="heightCm" label="Height (cm)" error={errors.heightCm}>
-              <input
+              <Input
                 id="heightCm"
                 type="number"
                 step="0.1"
@@ -254,7 +260,7 @@ export function ParticipantForm({
           )}
 
           <Field id="age" label="Age (years)" error={errors.age}>
-            <input
+            <Input
               id="age"
               type="number"
               min={AGE_BOUNDS.min}
@@ -265,93 +271,53 @@ export function ParticipantForm({
           </Field>
         </div>
 
-        <div className="bmi" aria-live="polite">
+        <div
+          className="mt-1.5 flex min-h-[30px] items-center gap-2.5"
+          aria-live="polite"
+        >
           {preview ? (
             <>
-              <span className="bmi__value">BMI {formatBmi(preview.bmi)}</span>
+              <span className="text-[1.1rem] font-bold">
+                BMI {formatBmi(preview.bmi)}
+              </span>
               <BandChip band={preview.band} />
             </>
           ) : (
-            <span className="bmi__hint">
+            <span className="text-muted">
               Enter weight and height to see the BMI
             </span>
           )}
         </div>
-        <p className="disclaimer">
+        <p className="mt-2 text-[0.8rem] text-muted">
           BMI is a screening estimate, not a diagnosis. It does not account for
           muscle, body composition or pregnancy.
         </p>
       </fieldset>
 
       {duplicate && (
-        <div className="notice notice--warn">
+        <Notice tone="warn">
           This person already exists.{' '}
-          <button
-            type="button"
-            className="link"
-            onClick={() => onRequestEdit(duplicate)}
-          >
+          <Button variant="link" onClick={() => onRequestEdit(duplicate)}>
             Edit their record
-          </button>
-        </div>
+          </Button>
+        </Notice>
       )}
       {errors.form && (
-        <div className="notice notice--error" role="alert">
+        <Notice tone="error" role="alert">
           {errors.form}
-        </div>
+        </Notice>
       )}
-      {serverError && <div className="notice notice--error">{serverError}</div>}
+      {serverError && <Notice tone="error">{serverError}</Notice>}
 
-      <div className="form__actions">
-        <button
-          type="submit"
-          className="btn btn--primary"
-          disabled={submitting}
-        >
+      <div className="flex justify-end">
+        <Button variant="primary" type="submit" disabled={submitting}>
           {submitting
             ? 'Saving…'
             : editing
               ? 'Save changes'
               : 'Save participant'}
-        </button>
+        </Button>
       </div>
     </form>
-  );
-}
-
-/** Labelled field wrapper: visible label + accessible error wiring. */
-function Field({
-  id,
-  label,
-  error,
-  children,
-}: {
-  id: string;
-  label: string;
-  error?: string;
-  children: ReactNode;
-}) {
-  // Wire the control to its error so screen readers announce invalidity and
-  // read the message (aria-invalid + aria-describedby). When the field wraps a
-  // single native control we inject them; compound controls wire each input above.
-  const control =
-    error &&
-    isValidElement(children) &&
-    ['input', 'select', 'textarea'].includes(children.type as string)
-      ? cloneElement(children as ReactElement<Record<string, unknown>>, {
-          'aria-invalid': true,
-          'aria-describedby': `${id}-error`,
-        })
-      : children;
-  return (
-    <div className={`field ${error ? 'field--error' : ''}`}>
-      <label htmlFor={id}>{label}</label>
-      {control}
-      {error && (
-        <span className="field__error" id={`${id}-error`} role="alert">
-          {error}
-        </span>
-      )}
-    </div>
   );
 }

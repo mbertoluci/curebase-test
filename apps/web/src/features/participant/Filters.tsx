@@ -1,6 +1,7 @@
 'use client';
 
 import { ListParticipantQuery, Unit } from '@org/contracts';
+import { Button, Field, Input, Select } from '../../shared/ui';
 
 interface Props {
   query: ListParticipantQuery;
@@ -14,20 +15,18 @@ export function Filters({ query, onChange, onReset }: Props) {
     v === '' ? undefined : Number(v);
 
   return (
-    <div className="filters">
-      <div className="field field--grow">
-        <label htmlFor="search">Search</label>
-        <input
+    <div className="mb-4 flex flex-wrap items-end gap-3">
+      <Field id="search" label="Search" className="flex-[1_1_220px]">
+        <Input
           id="search"
           placeholder="Name or email"
           value={query.search ?? ''}
           onChange={(e) => onChange({ search: e.target.value || undefined })}
         />
-      </div>
+      </Field>
 
-      <div className="field">
-        <label htmlFor="unit-filter">Unit</label>
-        <select
+      <Field id="unit-filter" label="Unit">
+        <Select
           id="unit-filter"
           value={query.unit ?? ''}
           onChange={(e) =>
@@ -39,12 +38,11 @@ export function Filters({ query, onChange, onReset }: Props) {
           <option value="">All</option>
           <option value={Unit.US}>US</option>
           <option value={Unit.METRIC}>Metric</option>
-        </select>
-      </div>
+        </Select>
+      </Field>
 
-      <div className="field field--narrow">
-        <label htmlFor="minBmi">Min BMI</label>
-        <input
+      <Field id="minBmi" label="Min BMI" className="w-[100px]">
+        <Input
           id="minBmi"
           type="number"
           step="0.1"
@@ -53,11 +51,10 @@ export function Filters({ query, onChange, onReset }: Props) {
             onChange({ minBmi: numberOrUndefined(e.target.value) })
           }
         />
-      </div>
+      </Field>
 
-      <div className="field field--narrow">
-        <label htmlFor="maxBmi">Max BMI</label>
-        <input
+      <Field id="maxBmi" label="Max BMI" className="w-[100px]">
+        <Input
           id="maxBmi"
           type="number"
           step="0.1"
@@ -66,11 +63,11 @@ export function Filters({ query, onChange, onReset }: Props) {
             onChange({ maxBmi: numberOrUndefined(e.target.value) })
           }
         />
-      </div>
+      </Field>
 
-      <button type="button" className="btn btn--ghost" onClick={onReset}>
+      <Button variant="ghost" onClick={onReset}>
         Reset
-      </button>
+      </Button>
     </div>
   );
 }

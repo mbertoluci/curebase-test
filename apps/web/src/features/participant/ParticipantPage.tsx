@@ -1,6 +1,7 @@
 'use client';
 
 import { DEFAULT_SORT_FIELD, DEFAULT_SORT_DIR } from '@org/contracts';
+import { Card, cx } from '../../shared/ui';
 import { Filters } from './Filters';
 import { ParticipantForm } from './ParticipantForm';
 import { ParticipantsTable } from './ParticipantsTable';
@@ -25,10 +26,12 @@ export function ParticipantPage() {
   } = useParticipantList();
 
   return (
-    <main className="page">
-      <header className="page__header">
-        <h1>Clinical Trial Participant Capture</h1>
-        <p>
+    <main className="mx-auto flex max-w-[1040px] flex-col gap-6 px-4 pt-8 pb-20">
+      <header>
+        <h1 className="mb-1 text-[1.6rem] font-semibold">
+          Clinical Trial Participant Capture
+        </h1>
+        <p className="text-muted">
           Collect demographics and measurements; BMI is computed and stored
           automatically.
         </p>
@@ -41,9 +44,9 @@ export function ParticipantPage() {
         onRequestEdit={startEdit}
       />
 
-      <section className="card">
-        <div className="section__header">
-          <h2>Participants</h2>
+      <Card>
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="text-[1.15rem] font-semibold">Participants</h2>
         </div>
         <Filters query={query} onChange={patchQuery} onReset={resetFilters} />
         <ParticipantsTable
@@ -57,10 +60,16 @@ export function ParticipantPage() {
           onEdit={startEdit}
           onDelete={handleDelete}
         />
-      </section>
+      </Card>
 
       {toast && (
-        <div className={`toast toast--${toast.kind}`} role="status">
+        <div
+          role="status"
+          className={cx(
+            'fixed bottom-6 left-1/2 -translate-x-1/2 rounded-[10px] px-5 py-3 text-white shadow-[0_6px_24px_rgba(0,0,0,0.2)]',
+            toast.kind === 'success' ? 'bg-band-normal' : 'bg-danger',
+          )}
+        >
           {toast.message}
         </div>
       )}
