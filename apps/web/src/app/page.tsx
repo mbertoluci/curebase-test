@@ -2,6 +2,8 @@
 
 import {
   DEFAULT_PAGE_SIZE,
+  DEFAULT_SORT_FIELD,
+  DEFAULT_SORT_DIR,
   ListParticipantsQuery,
   Paginated,
   ParticipantSortField,
@@ -16,8 +18,8 @@ import { ParticipantsTable } from '../components/ParticipantsTable';
 const DEFAULT_QUERY: ListParticipantsQuery = {
   page: 1,
   pageSize: DEFAULT_PAGE_SIZE,
-  sortBy: 'createdAt',
-  sortDir: 'desc',
+  sortBy: DEFAULT_SORT_FIELD,
+  sortDir: DEFAULT_SORT_DIR,
 };
 
 type Toast = { kind: 'success' | 'error'; message: string };
@@ -138,8 +140,8 @@ export default function HomePage() {
           page={page}
           loading={loading}
           error={error}
-          sortBy={query.sortBy ?? 'createdAt'}
-          sortDir={query.sortDir ?? 'desc'}
+          sortBy={query.sortBy ?? DEFAULT_SORT_FIELD}
+          sortDir={query.sortDir ?? DEFAULT_SORT_DIR}
           onSort={handleSort}
           onPage={(p) => patchQuery({ page: p })}
           onEdit={startEdit}

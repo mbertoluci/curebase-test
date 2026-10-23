@@ -46,7 +46,9 @@ export class ParticipantsController {
   @Post()
   @HttpCode(HttpStatus.CREATED)
   @ApiCreatedResponse({ type: ParticipantDto })
-  @ApiBadRequestResponse({ description: 'Validation failed (VALIDATION_FAILED)' })
+  @ApiBadRequestResponse({
+    description: 'Validation failed (VALIDATION_FAILED)',
+  })
   @Throws(EmailAlreadyExistsError)
   create(
     @Body() body: CreateParticipantDto,
@@ -57,7 +59,9 @@ export class ParticipantsController {
 
   @Get()
   @ApiOkResponse({ type: PaginatedParticipantsDto })
-  @ApiBadRequestResponse({ description: 'Validation failed (VALIDATION_FAILED)' })
+  @ApiBadRequestResponse({
+    description: 'Validation failed (VALIDATION_FAILED)',
+  })
   list(
     @Query() query: ListParticipantsQueryDto,
   ): Promise<Paginated<ParticipantView>> {
@@ -65,6 +69,9 @@ export class ParticipantsController {
   }
 
   @Get(':id')
+  @ApiBadRequestResponse({
+    description: 'Validation failed (VALIDATION_FAILED)',
+  })
   @ApiOkResponse({ type: ParticipantDto })
   @Throws(ParticipantNotFoundError)
   findById(@Param('id', ParseUUIDPipe) id: string): Promise<ParticipantView> {
@@ -73,7 +80,9 @@ export class ParticipantsController {
 
   @Put(':id')
   @ApiOkResponse({ type: ParticipantDto })
-  @ApiBadRequestResponse({ description: 'Validation failed (VALIDATION_FAILED)' })
+  @ApiBadRequestResponse({
+    description: 'Validation failed (VALIDATION_FAILED)',
+  })
   @Throws(ParticipantNotFoundError, EmailAlreadyExistsError)
   update(
     @Param('id', ParseUUIDPipe) id: string,
@@ -84,6 +93,9 @@ export class ParticipantsController {
   }
 
   @Delete(':id')
+  @ApiBadRequestResponse({
+    description: 'Validation failed (VALIDATION_FAILED)',
+  })
   @HttpCode(HttpStatus.NO_CONTENT)
   @Throws(ParticipantNotFoundError)
   remove(

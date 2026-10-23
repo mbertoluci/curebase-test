@@ -1,6 +1,9 @@
 import { computeBmi, roundBmi, Unit } from '@org/contracts';
 import { PrismaService } from '../../database/prisma.service';
-import { EmailAlreadyExistsError } from './participants.error';
+import {
+  EmailAlreadyExistsError,
+  ParticipantNotFoundError,
+} from './participants.error';
 import { ParticipantsRepository } from './participants.repository';
 import { CreateParticipantData } from './participants.type';
 
@@ -220,6 +223,96 @@ describe('ParticipantsRepository (integration)', () => {
       ),
     ).rejects.not.toBeInstanceOf(EmailAlreadyExistsError);
   });
+
+  it('rejects legacy case and whitespace variants through the database index', async () => {
+    await create({ email: '  LEGACY@X.COM  ' });
+    await expect(create({ email: 'legacy@x.com' })).rejects.toBeInstanceOf(
+      EmailAlreadyExistsError,
+    );
+  });
+
+  it('rejects an active participant whose profile is deleted or missing', async () => {
+    const view = await create();
+    const row = await prisma.participant.findUniqueOrThrow({
+      where: { id: view.id },
+    });
+    await prisma.profile.update({
+      where: { userId: row.userId },
+      data: { deletedAt: new Date() },
+    });
+    await expect(repo.findById(view.id)).rejects.toThrow(/no active profile/);
+    await prisma.profile.delete({ where: { userId: row.userId } });
+    await expect(repo.findById(view.id)).rejects.toThrow(/no active profile/);
+  });
+
+  it('does not update a deleted participant', async () => {
+    const view = await create();
+    await prisma.$transaction((tx) => repo.softDeleteTx(tx, view.id));
+    await expect(
+      prisma.$transaction((tx) => repo.updateTx(tx, view.id, { weight: 90 })),
+    ).rejects.toBeInstanceOf(ParticipantNotFoundError);
+    expect(
+      (
+        await prisma.participant.findUniqueOrThrow({ where: { id: view.id } })
+      ).weight.toNumber(),
+    ).toBe(view.weight);
+  });
+
+  it('consistently hides a deleted user in direct and filtered reads', async () => {
+    const view = await create();
+    await prisma.user.updateMany({
+      where: { participant: { id: view.id } },
+      data: { deletedAt: new Date() },
+    });
+    expect(await repo.findById(view.id)).toBeNull();
+    for (const filter of [{}, { search: view.email }]) {
+      expect(
+        (
+          await repo.list(
+            filter,
+            { field: 'age', direction: 'asc' },
+            { page: 1, pageSize: 25 },
+          )
+        ).total,
+      ).toBe(0);
+    }
+  });
+
+  it.each(['createdAt', 'bmiValue', 'age', 'lastName'] as const)(
+    'keeps ascending id ties across pages for %s in either direction',
+    async (field) => {
+      const tied = await Promise.all([create(), create(), create()]);
+      await prisma.participant.updateMany({
+        where: { id: { in: tied.map((p) => p.id) } },
+        data: { createdAt: new Date('2026-01-01') },
+      });
+      const greater = await create({
+        lastName: 'Zebra',
+        age: 50,
+        bmiValue: 35,
+      });
+      await prisma.participant.update({
+        where: { id: greater.id },
+        data: { createdAt: new Date('2026-02-01') },
+      });
+      const ids = tied.map((p) => p.id).sort();
+      for (const direction of ['asc', 'desc'] as const) {
+        const first = await repo.list(
+          {},
+          { field, direction },
+          { page: 1, pageSize: 2 },
+        );
+        const second = await repo.list(
+          {},
+          { field, direction },
+          { page: 2, pageSize: 2 },
+        );
+        expect([...first.data, ...second.data].map((p) => p.id)).toEqual(
+          direction === 'asc' ? [...ids, greater.id] : [greater.id, ...ids],
+        );
+      }
+    },
+  );
 
   describe('list', () => {
     beforeEach(async () => {
