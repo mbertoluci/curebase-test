@@ -52,6 +52,19 @@ export type ParticipantSortField =
   'createdAt' | 'bmiValue' | 'age' | 'lastName';
 export type SortDirection = 'asc' | 'desc';
 
+/** The one default sort, shared so the API and the web client cannot drift. */
+export const DEFAULT_SORT_FIELD: ParticipantSortField = 'createdAt';
+export const DEFAULT_SORT_DIR: SortDirection = 'desc';
+
+/**
+ * Canonical email form. Email is treated case-insensitively (and trimmed), so
+ * the API stores and de-duplicates on this form and the web compares with it;
+ * "A@X.com" and "a@x.com" are the same participant.
+ */
+export function normalizeEmail(email: string): string {
+  return email.trim().toLowerCase();
+}
+
 /** Allow-listed query contract for GET /participants (filter + sort + paginate). */
 export interface ListParticipantsQuery {
   page?: number;

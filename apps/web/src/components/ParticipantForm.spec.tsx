@@ -111,38 +111,36 @@ describe('ParticipantForm', () => {
   });
 
   it.each(['peter@x.com', 'Peter@X.com'])(
-    'offers the exact-case record for %s, not a substring or case-only match',
-    async (email) => {
+    'matches the duplicate on the normalized email regardless of typed case (%s)',
+    async (typed) => {
       const h = handlers();
-      const peter = { ...view, id: 'p9', email };
-      const caseOnlyHit = {
-        ...view,
-        id: 'p2',
-        email: email === 'peter@x.com' ? 'Peter@X.com' : 'peter@x.com',
-      };
-      // A substring hit (someone whose email merely contains the typed one) sorts
-      // first; the exact-email record is the one that must be offered.
+      // Email is case-insensitive: the server stores and de-duplicates on the
+      // normalized (lowercased) form, so the typed case must not change which
+      // record is offered.
+      const peter = { ...view, id: 'p9', email: 'peter@x.com' };
+      // A substring hit (someone whose email merely contains the typed one).
       const substringHit = { ...view, id: 'p1', email: 'peter@x.com.br' };
       mockApi.create.mockRejectedValue(
         new ApiError(409, 'EMAIL_ALREADY_EXISTS', 'dup'),
       );
       mockApi.list.mockResolvedValue({
-        data: [substringHit, caseOnlyHit, peter],
-        pageInfo: { page: 1, pageSize: 25, total: 3, totalPages: 1 },
+        data: [substringHit, peter],
+        pageInfo: { page: 1, pageSize: 25, total: 2, totalPages: 1 },
       });
       render(<ParticipantForm editing={null} {...h} />);
       fillValidUs();
       fireEvent.change(screen.getByLabelText('Email'), {
-        target: { value: email },
+        target: { value: typed },
       });
       fireEvent.click(screen.getByRole('button', { name: /Save participant/ }));
 
       const editBtn = await screen.findByText('Edit their record');
       fireEvent.click(editBtn);
       expect(h.onRequestEdit).toHaveBeenCalledWith(peter);
-      expect(mockApi.list).toHaveBeenCalledWith({ search: email });
+      // Both the lookup and the submit use the normalized email.
+      expect(mockApi.list).toHaveBeenCalledWith({ search: 'peter@x.com' });
       expect(mockApi.create).toHaveBeenCalledWith(
-        expect.objectContaining({ email }),
+        expect.objectContaining({ email: 'peter@x.com' }),
       );
     },
   );

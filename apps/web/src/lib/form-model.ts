@@ -8,6 +8,7 @@ import {
   inchesToFeetInches,
   hasMeasurementPrecision,
   measurementErrors,
+  normalizeEmail,
   ParticipantView,
   roundBmi,
   Unit,
@@ -187,7 +188,7 @@ export function validate(values: FormValues): {
     input: {
       firstName: values.firstName.trim(),
       lastName: values.lastName.trim(),
-      email: values.email.trim(),
+      email: normalizeEmail(values.email),
       phone: values.phone.trim() || null,
       weight,
       height,

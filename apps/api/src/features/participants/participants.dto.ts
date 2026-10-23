@@ -1,5 +1,14 @@
 import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
-import { BmiBand, Unit } from '@org/contracts';
+import {
+  AGE_BOUNDS,
+  BmiBand,
+  DEFAULT_PAGE_SIZE,
+  DEFAULT_SORT_DIR,
+  DEFAULT_SORT_FIELD,
+  MAX_PAGE_SIZE,
+  normalizeEmail,
+  Unit,
+} from '@org/contracts';
 import type {
   CreateParticipantInput,
   ListParticipantsQuery,
@@ -9,7 +18,7 @@ import type {
   ParticipantView,
   SortDirection,
 } from '@org/contracts';
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import {
   IsEmail,
   IsEnum,
@@ -53,6 +62,9 @@ export class CreateParticipantDto implements CreateParticipantInput {
   lastName!: string;
 
   @ApiProperty({ format: 'email', maxLength: 255 })
+  @Transform(({ value }) =>
+    typeof value === 'string' ? normalizeEmail(value) : value,
+  )
   @IsEmail()
   @MaxLength(255)
   email!: string;
@@ -81,11 +93,11 @@ export class CreateParticipantDto implements CreateParticipantInput {
   @IsEnum(Unit)
   unit!: Unit;
 
-  @ApiProperty({ minimum: 0, maximum: 120 })
+  @ApiProperty({ minimum: AGE_BOUNDS.min, maximum: AGE_BOUNDS.max })
   @Type(() => Number)
   @IsInt()
-  @Min(0)
-  @Max(120)
+  @Min(AGE_BOUNDS.min)
+  @Max(AGE_BOUNDS.max)
   age!: number;
 }
 
@@ -108,12 +120,16 @@ export class ListParticipantsQueryDto implements ListParticipantsQuery {
   @Min(1)
   page?: number;
 
-  @ApiPropertyOptional({ minimum: 1, maximum: 100, default: 25 })
+  @ApiPropertyOptional({
+    minimum: 1,
+    maximum: MAX_PAGE_SIZE,
+    default: DEFAULT_PAGE_SIZE,
+  })
   @IsOptional()
   @Type(() => Number)
   @IsInt()
   @Min(1)
-  @Max(100)
+  @Max(MAX_PAGE_SIZE)
   pageSize?: number;
 
   @ApiPropertyOptional({
@@ -141,24 +157,28 @@ export class ListParticipantsQueryDto implements ListParticipantsQuery {
   @IsNumber()
   maxBmi?: number;
 
-  @ApiPropertyOptional({ minimum: 0, maximum: 120 })
+  @ApiPropertyOptional({ minimum: AGE_BOUNDS.min, maximum: AGE_BOUNDS.max })
   @IsOptional()
   @Type(() => Number)
   @IsInt()
+  @Min(AGE_BOUNDS.min)
+  @Max(AGE_BOUNDS.max)
   minAge?: number;
 
-  @ApiPropertyOptional({ minimum: 0, maximum: 120 })
+  @ApiPropertyOptional({ minimum: AGE_BOUNDS.min, maximum: AGE_BOUNDS.max })
   @IsOptional()
   @Type(() => Number)
   @IsInt()
+  @Min(AGE_BOUNDS.min)
+  @Max(AGE_BOUNDS.max)
   maxAge?: number;
 
-  @ApiPropertyOptional({ enum: SORT_FIELDS, default: 'createdAt' })
+  @ApiPropertyOptional({ enum: SORT_FIELDS, default: DEFAULT_SORT_FIELD })
   @IsOptional()
   @IsIn(SORT_FIELDS)
   sortBy?: ParticipantSortField;
 
-  @ApiPropertyOptional({ enum: SORT_DIRS, default: 'desc' })
+  @ApiPropertyOptional({ enum: SORT_DIRS, default: DEFAULT_SORT_DIR })
   @IsOptional()
   @IsIn(SORT_DIRS)
   sortDir?: SortDirection;

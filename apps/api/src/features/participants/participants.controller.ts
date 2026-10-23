@@ -12,7 +12,12 @@ import {
   Put,
   Query,
 } from '@nestjs/common';
-import { ApiCreatedResponse, ApiOkResponse, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBadRequestResponse,
+  ApiCreatedResponse,
+  ApiOkResponse,
+  ApiTags,
+} from '@nestjs/swagger';
 import { Paginated, ParticipantView } from '@org/contracts';
 import { Throws } from '../../common/errors/throws.decorator';
 import {
@@ -41,6 +46,7 @@ export class ParticipantsController {
   @Post()
   @HttpCode(HttpStatus.CREATED)
   @ApiCreatedResponse({ type: ParticipantDto })
+  @ApiBadRequestResponse({ description: 'Validation failed (VALIDATION_FAILED)' })
   @Throws(EmailAlreadyExistsError)
   create(
     @Body() body: CreateParticipantDto,
@@ -51,6 +57,7 @@ export class ParticipantsController {
 
   @Get()
   @ApiOkResponse({ type: PaginatedParticipantsDto })
+  @ApiBadRequestResponse({ description: 'Validation failed (VALIDATION_FAILED)' })
   list(
     @Query() query: ListParticipantsQueryDto,
   ): Promise<Paginated<ParticipantView>> {
@@ -66,6 +73,7 @@ export class ParticipantsController {
 
   @Put(':id')
   @ApiOkResponse({ type: ParticipantDto })
+  @ApiBadRequestResponse({ description: 'Validation failed (VALIDATION_FAILED)' })
   @Throws(ParticipantNotFoundError, EmailAlreadyExistsError)
   update(
     @Param('id', ParseUUIDPipe) id: string,

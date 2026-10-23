@@ -1,6 +1,6 @@
 'use client';
 
-import { ParticipantView, Unit } from '@org/contracts';
+import { normalizeEmail, ParticipantView, Unit } from '@org/contracts';
 import { useEffect, useRef, useState } from 'react';
 import { api, ApiError } from '../lib/api';
 import { formatBmi, weightUnit } from '../lib/display';
@@ -89,13 +89,15 @@ export function ParticipantForm({
       // server rejected on) - never just the first substring hit, which could
       // be a different person.
       try {
-        const query = values.email.trim();
+        // Compare on the normalized email (the form the server stores and
+        // de-duplicates on), so a case difference can't hide the real match.
+        const query = normalizeEmail(values.email);
         const page = await api.list({ search: query });
         // The user may have corrected the email while this lookup was in
         // flight (e.g. typed a new one and kept going); offering the old
         // email's record then would point at the wrong person.
-        if (emailRef.current.trim() !== query) return;
-        const exact = page.data.find((p) => p.email === query);
+        if (normalizeEmail(emailRef.current) !== query) return;
+        const exact = page.data.find((p) => normalizeEmail(p.email) === query);
         setDuplicate(exact ?? null);
       } catch {
         /* non-fatal: the inline message is enough */
