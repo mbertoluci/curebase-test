@@ -44,7 +44,13 @@ apps/
       features/
         participants/  controller · dto · service · repository · type · error · module
   api-e2e/             HTTP smoke tests against a running API
-  web/                 Next.js app (form + table)
+  web/                 Next.js App Router app (Tailwind v4)
+    src/
+      app/             routing only (layout, page = Server Component, error)
+      entities/        participant: model · api · display · BandChip
+      features/        participant-form · participant-list
+      widgets/         participant-page (the composed screen)
+      shared/          http · constants · report-error · ui/ (primitives)
 libs/
   contracts/           shared BMI logic, unit rules, wire types, error codes
 ```
@@ -62,32 +68,49 @@ HTTP → Controller → Service → Repository → Prisma → Postgres
 - **Repository** - the only place that knows Prisma. Builds queries, maps `Decimal`/`Date` entities to the plain `ParticipantView` DTO, and translates DB errors (unique violation → domain error).
 - **contracts** - pure functions (`computeBmi`, `classifyBmi`, `convertMeasurements`, `measurementErrors`) and types shared by API + web.
 
+### Web architecture (feature-sliced)
+
+The frontend uses a Feature-Sliced layout: dependencies flow strictly downward
+(`app → widgets → features → entities → shared`) and each slice exposes a public
+API via `index.ts`.
+
+- **entities/participant** - the domain noun: model + validation, the API client (which validates the response shape), display helpers, and the band chip.
+- **features/** - user interactions: `participant-form` (create/edit) and `participant-list` (search, filter, sort, paginate, delete).
+- **widgets/participant-page** - composes the features into the screen.
+- **shared/** - framework-agnostic building blocks: the fetch wrapper (`ApiError` + `request`), the error sink, and the UI primitives.
+
+The layering is **lint-enforced** (`import/no-restricted-paths`): `entities/`, for example, cannot import a feature. Cross-slice imports use the `@/` alias. The layout is deliberately feature-sliced-_lite_ (no full `pages`/`views` ceremony) - right-sized for one feature, not gold-plated.
+
+Conventions: React components are `PascalCase.tsx`, everything else is `kebab/lowercase.ts`, and each slice re-exports its public surface through `index.ts`. `shared/` is the exception - imported by submodule (`@/shared/http`, `@/shared/ui`) rather than a root barrel, since its parts are independent leaf utilities.
+
+**Server/client boundary.** `app/page.tsx` is a Server Component that fetches the first list page on the server for a data-complete first paint, then hands it to the client widget as `initialData`; `useParticipantList` seeds from it and skips the initial client fetch (falling back to a client load if the SSR fetch fails). Dates are formatted in UTC so the server markup hydrates without a mismatch. Interactive code (`'use client'`) stays in the leaves.
+
 ---
 
 ## Data model
 
 `users 1-1 profiles` (PII) and `users 1-1 participants` (measurements). Current-state model: one participant row per user, edited in place.
 
-| table | notable columns |
-|---|---|
-| `users` | id, timestamps, `deleted_at` |
-| `profiles` | user_id, first/last name, email, phone, `deleted_at` |
+| table          | notable columns                                                              |
+| -------------- | ---------------------------------------------------------------------------- |
+| `users`        | id, timestamps, `deleted_at`                                                 |
+| `profiles`     | user_id, first/last name, email, phone, `deleted_at`                         |
 | `participants` | user_id, weight, height, `unit` (US\|METRIC), `bmi_value`, age, `deleted_at` |
-| `audit_logs` | actor, action, entity, entity_id, before, after (append-only) |
+| `audit_logs`   | actor, action, entity, entity_id, before, after (append-only)                |
 
 - **BMI**: `US = 703·lb/in²`, `METRIC = kg/m²` (height entered in cm). Computed server-side, stored to 2dp, **recomputed on every update**, displayed to 1dp. WHO bands: `<18.5` under · `<25` normal · `<30` over · `≥30` obese; `null` under age 18 (no pediatric curves).
 - **Soft-delete only**: nothing is ever hard-deleted. A **partial unique index** (`profiles.email WHERE deleted_at IS NULL`) enforces one active email while still allowing a deleted email to be re-registered.
 
 ### Endpoints
 
-| method | path | notes |
-|---|---|---|
-| `POST` | `/api/participants` | creates user+profile+participant in one tx; duplicate email → `409` |
-| `GET` | `/api/participants` | filter (`search`, `unit`, `minBmi`/`maxBmi`, `minAge`/`maxAge`), `sortBy`/`sortDir`, `page`/`pageSize` |
-| `GET` | `/api/participants/:id` | `404` if missing/deleted |
-| `PUT` | `/api/participants/:id` | partial update; recomputes BMI on a measurement change |
-| `DELETE` | `/api/participants/:id` | soft-delete (`204`) |
-| `GET` | `/api/health` | liveness |
+| method   | path                    | notes                                                                                                  |
+| -------- | ----------------------- | ------------------------------------------------------------------------------------------------------ |
+| `POST`   | `/api/participants`     | creates user+profile+participant in one tx; duplicate email → `409`                                    |
+| `GET`    | `/api/participants`     | filter (`search`, `unit`, `minBmi`/`maxBmi`, `minAge`/`maxAge`), `sortBy`/`sortDir`, `page`/`pageSize` |
+| `GET`    | `/api/participants/:id` | `404` if missing/deleted                                                                               |
+| `PUT`    | `/api/participants/:id` | partial update; recomputes BMI on a measurement change                                                 |
+| `DELETE` | `/api/participants/:id` | soft-delete (`204`)                                                                                    |
+| `GET`    | `/api/health`           | liveness                                                                                               |
 
 Every error returns one envelope: `{ statusCode, code, message, details?, timestamp, path }`, with a stable machine `code`.
 
@@ -104,11 +127,11 @@ npm run e2e        # API HTTP e2e (needs: db up + `npm run dev:api` running)
 
 Coverage is collected on every `nx test` and enforced via `coverageThreshold`, so a drop below the bar fails the build (and the pre-commit). The table below is the **enforced gate**, not the latest measured coverage:
 
-| project | statements | branches | functions | lines |
-|---|---|---|---|---|
-| contracts | 95% | 90% | 90% | 95% |
-| api | 92% | 70%\* | 92% | 94% |
-| web | 93% | 85% | 88% | 94% |
+| project   | statements | branches | functions | lines |
+| --------- | ---------- | -------- | --------- | ----- |
+| contracts | 95%        | 90%      | 90%       | 95%   |
+| api       | 92%        | 70%\*    | 92%       | 94%   |
+| web       | 93%        | 85%      | 88%       | 94%   |
 
 \* The api **global** branch gate is 70% because Nest/Swagger method decorators generate branch points that can't be meaningfully exercised; the service additionally carries its own per-path threshold of 100% statements/functions/lines and 80% branches.
 
@@ -123,7 +146,7 @@ A **Husky pre-commit** hook formats staged files and runs `nx affected -t typech
 
 ## Key decisions & alternatives considered
 
-**Where is input validated?** In two layers, on purpose. *Structural* validation (types, format, presence, generic ranges) happens at the DTO boundary with **class-validator** + a global `ValidationPipe` (`whitelist` + `forbidNonWhitelisted` strip/reject unknown fields - defence against over-posting). *Domain* rules that class-validator can't express cleanly (per-unit plausibility bounds, a cross-field rule) live in the service and reuse the shared `measurementErrors()` so the web and API agree.
+**Where is input validated?** In two layers, on purpose. _Structural_ validation (types, format, presence, generic ranges) happens at the DTO boundary with **class-validator** + a global `ValidationPipe` (`whitelist` + `forbidNonWhitelisted` strip/reject unknown fields - defence against over-posting). _Domain_ rules that class-validator can't express cleanly (per-unit plausibility bounds, a cross-field rule) live in the service and reuse the shared `measurementErrors()` so the web and API agree.
 
 **How is user input handled safely?** Prisma parameterises every query (no string-built SQL). DTO whitelisting drops unexpected fields. Request logs record only the id, method and path - never the query string (which can carry PII like `?search=<email>`) and never request headers; sensitive headers are additionally redacted as defence in depth. Ids are validated as UUIDs (`ParseUUIDPipe`).
 

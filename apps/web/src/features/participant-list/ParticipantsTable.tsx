@@ -32,7 +32,7 @@ const SORTABLE: Record<ParticipantSortField, string> = {
   lastName: 'Name',
   age: 'Age',
   bmiValue: 'BMI',
-  createdAt: 'Created',
+  createdAt: 'Created (UTC)',
 };
 
 const TH =
@@ -194,7 +194,7 @@ export function ParticipantsTable({
                 <td className={TD} data-label="Unit">
                   {unitLabel(p.unit)}
                 </td>
-                <td className={TD} data-label="Created">
+                <td className={TD} data-label="Created (UTC)">
                   {formatDate(p.createdAt)}
                 </td>
                 <td className={TD} data-label="Actions">

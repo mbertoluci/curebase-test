@@ -6,6 +6,7 @@ import {
   screen,
   waitFor,
 } from '@testing-library/react';
+import { StrictMode } from 'react';
 import { ApiError } from '@/shared/http';
 import { api } from '@/entities/participant/api';
 import { ParticipantPage } from './ParticipantPage';
@@ -226,6 +227,20 @@ describe('list request ordering', () => {
       expect(screen.queryByText('Could not load participants.')).toBeNull();
     },
   );
+
+  it('does not refetch on mount under StrictMode when seeded', async () => {
+    // StrictMode double-invokes the effect; the skip must stay idempotent and
+    // issue zero requests for the seeded view even past the debounce window.
+    render(
+      <StrictMode>
+        <ParticipantPage initialData={onePage} />
+      </StrictMode>,
+    );
+    await act(async () => {
+      jest.advanceTimersByTime(300);
+    });
+    expect(mockApi.list).not.toHaveBeenCalled();
+  });
 
   it('keeps loading until the latest request settles and clears it on failure', async () => {
     const a = deferred<typeof onePage>();

@@ -32,6 +32,10 @@ describe('display helpers', () => {
   });
 
   it('formats a date without throwing', () => {
-    expect(typeof formatDate('2026-01-01T00:00:00.000Z')).toBe('string');
+    // Fixed locale + UTC: deterministic across server and client (no hydration
+    // mismatch). A regression to a locale/timezone-dependent format fails here.
+    expect(formatDate('2026-01-01T00:00:00.000Z')).toBe(
+      'Jan 1, 2026, 12:00 AM',
+    );
   });
 });
