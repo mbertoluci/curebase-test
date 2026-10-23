@@ -1,12 +1,22 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 
-export type AuditAction = 'CREATE' | 'UPDATE' | 'DELETE';
+/** The closed set of audited mutations (mirrors the DB CHECK on `action`). */
+export enum AuditAction {
+  CREATE = 'CREATE',
+  UPDATE = 'UPDATE',
+  DELETE = 'DELETE',
+}
+
+/** The entities that can be audited (grows as features are added). */
+export enum AuditEntity {
+  PARTICIPANT = 'participant',
+}
 
 export interface AuditEntry {
   actor: string;
   action: AuditAction;
-  entity: string;
+  entity: AuditEntity;
   entityId: string;
   before?: unknown;
   after?: unknown;

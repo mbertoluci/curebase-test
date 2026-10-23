@@ -1,5 +1,5 @@
 import { Prisma } from '@prisma/client';
-import { AuditService } from './audit.service';
+import { AuditAction, AuditEntity, AuditService } from './audit.service';
 
 describe('AuditService', () => {
   const create = jest.fn();
@@ -11,8 +11,8 @@ describe('AuditService', () => {
   it('writes an audit row with before/after on the given transaction', async () => {
     await service.record(tx, {
       actor: 'editor',
-      action: 'UPDATE',
-      entity: 'participant',
+      action: AuditAction.UPDATE,
+      entity: AuditEntity.PARTICIPANT,
       entityId: 'p1',
       before: { a: 1 },
       after: { a: 2 },
@@ -32,8 +32,8 @@ describe('AuditService', () => {
   it('stores SQL NULL (DbNull) when before/after are absent (e.g. CREATE/DELETE)', async () => {
     await service.record(tx, {
       actor: 'x',
-      action: 'CREATE',
-      entity: 'participant',
+      action: AuditAction.CREATE,
+      entity: AuditEntity.PARTICIPANT,
       entityId: 'p1',
       after: { a: 1 },
     });

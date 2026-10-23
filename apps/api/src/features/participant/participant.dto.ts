@@ -13,7 +13,7 @@ import {
 } from '@org/contracts';
 import type {
   CreateParticipantInput,
-  ListParticipantsQuery,
+  ListParticipantQuery,
   PageInfo,
   Paginated,
   ParticipantSortField,
@@ -112,7 +112,7 @@ export class UpdateParticipantDto extends PartialType(CreateParticipantDto, {
 }) {}
 
 /** Allow-listed query contract for GET /participants. */
-export class ListParticipantQueryDto implements ListParticipantsQuery {
+export class ListParticipantQueryDto implements ListParticipantQuery {
   @ApiPropertyOptional({ minimum: 1, default: 1 })
   @IsOptional()
   @Type(() => Number)

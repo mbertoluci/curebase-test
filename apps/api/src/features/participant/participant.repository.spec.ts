@@ -94,7 +94,7 @@ describe('ParticipantRepository (integration)', () => {
 
   beforeEach(async () => {
     await prisma.$executeRawUnsafe(
-      'TRUNCATE TABLE "audit_log","participants","profiles","users" RESTART IDENTITY CASCADE',
+      'TRUNCATE TABLE "audit_logs","participants","profiles","users" RESTART IDENTITY CASCADE',
     );
   });
 
