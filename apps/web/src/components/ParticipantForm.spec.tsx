@@ -1,5 +1,11 @@
 import { BmiBand, ParticipantView, Unit } from '@org/contracts';
-import { fireEvent, render, screen, waitFor, act } from '@testing-library/react';
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  act,
+} from '@testing-library/react';
 import { api, ApiError } from '../lib/api';
 import { ParticipantForm } from './ParticipantForm';
 
@@ -309,4 +315,51 @@ describe('ParticipantForm', () => {
     fireEvent.click(screen.getByRole('button', { name: /Save participant/ }));
     expect(await screen.findByText('Server exploded')).toBeTruthy();
   });
+});
+
+it('associates both US height controls with their error and clears the attributes', async () => {
+  render(<ParticipantForm editing={null} {...handlers()} />);
+  const feet = screen.getByLabelText('Height (ft / in)');
+  const inches = screen.getByLabelText('inches');
+  expect(feet.hasAttribute('aria-invalid')).toBe(false);
+  fireEvent.click(screen.getByRole('button', { name: /Save participant/ }));
+  for (const input of [feet, inches]) {
+    expect(input.getAttribute('aria-invalid')).toBe('true');
+    expect(input.getAttribute('aria-describedby')).toBe('feet-error');
+  }
+  expect(
+    screen
+      .getByRole('radiogroup', { name: 'Unit system' })
+      .hasAttribute('aria-invalid'),
+  ).toBe(false);
+  fillValidUs();
+  mockApi.create.mockResolvedValue(view);
+  fireEvent.click(screen.getByRole('button', { name: /Save participant/ }));
+  await waitFor(() => expect(feet.hasAttribute('aria-invalid')).toBe(false));
+  expect(inches.hasAttribute('aria-describedby')).toBe(false);
+});
+
+it('blocks two submits before a render and allows a retry after failure', async () => {
+  let reject!: (error: Error) => void;
+  mockApi.create.mockReturnValueOnce(
+    new Promise((_resolve, no) => {
+      reject = no;
+    }),
+  );
+  const { container } = render(
+    <ParticipantForm editing={null} {...handlers()} />,
+  );
+  fillValidUs();
+  const form = container.querySelector('form')!;
+  act(() => {
+    fireEvent.submit(form);
+    fireEvent.submit(form);
+  });
+  expect(mockApi.create).toHaveBeenCalledTimes(1);
+  await act(async () => {
+    reject(new Error('failure'));
+  });
+  mockApi.create.mockResolvedValue(view);
+  fireEvent.submit(form);
+  await waitFor(() => expect(mockApi.create).toHaveBeenCalledTimes(2));
 });

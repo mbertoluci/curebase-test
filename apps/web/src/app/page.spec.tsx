@@ -1,5 +1,11 @@
 import { BmiBand, Unit } from '@org/contracts';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from '@testing-library/react';
 import { api, ApiError } from '../lib/api';
 import HomePage from './page';
 
@@ -160,5 +166,79 @@ describe('HomePage', () => {
     await screen.findByText('Edit participant');
     fireEvent.click(screen.getByRole('button', { name: /Save changes/ }));
     expect(await screen.findByText('Participant updated.')).toBeTruthy();
+  });
+});
+
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  let reject!: (error: Error) => void;
+  const promise = new Promise<T>((yes, no) => {
+    resolve = yes;
+    reject = no;
+  });
+  return { promise, resolve, reject };
+}
+
+describe('list request ordering', () => {
+  beforeEach(() => jest.useFakeTimers());
+  afterEach(() => jest.useRealTimers());
+
+  it.each(['success', 'failure'] as const)(
+    'ignores stale %s after the newer response',
+    async (outcome) => {
+      const a = deferred<typeof onePage>();
+      const b = deferred<typeof onePage>();
+      mockApi.list
+        .mockReturnValueOnce(a.promise)
+        .mockReturnValueOnce(b.promise);
+      render(<HomePage />);
+      await act(async () => {
+        jest.advanceTimersByTime(250);
+      });
+      fireEvent.change(screen.getByLabelText('Search'), {
+        target: { value: 'Grace' },
+      });
+      await act(async () => {
+        jest.advanceTimersByTime(250);
+      });
+      expect(mockApi.list).toHaveBeenCalledTimes(2);
+      await act(async () => {
+        b.resolve({ ...onePage, data: [{ ...view, firstName: 'Grace' }] });
+      });
+      expect(screen.getByText('Grace Lovelace')).toBeTruthy();
+      expect(screen.queryByText('Loading participants…')).toBeNull();
+      await act(async () => {
+        if (outcome === 'success') a.resolve(onePage);
+        else a.reject(new Error('stale failure'));
+      });
+      expect(screen.getByText('Grace Lovelace')).toBeTruthy();
+      expect(screen.queryByText('Ada Lovelace')).toBeNull();
+      expect(screen.queryByText('Could not load participants.')).toBeNull();
+    },
+  );
+
+  it('keeps loading until the latest request settles and clears it on failure', async () => {
+    const a = deferred<typeof onePage>();
+    const b = deferred<typeof onePage>();
+    mockApi.list.mockReturnValueOnce(a.promise).mockReturnValueOnce(b.promise);
+    render(<HomePage />);
+    await act(async () => {
+      jest.advanceTimersByTime(250);
+    });
+    fireEvent.change(screen.getByLabelText('Search'), {
+      target: { value: 'Grace' },
+    });
+    await act(async () => {
+      jest.advanceTimersByTime(250);
+    });
+    await act(async () => {
+      a.resolve(onePage);
+    });
+    expect(screen.getByText('Loading participants…')).toBeTruthy();
+    await act(async () => {
+      b.reject(new Error('latest failure'));
+    });
+    expect(screen.queryByText('Loading participants…')).toBeNull();
+    expect(screen.getByText('Could not load participants.')).toBeTruthy();
   });
 });

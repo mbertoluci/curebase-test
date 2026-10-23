@@ -68,3 +68,18 @@ describe('api client', () => {
     expect(calls[2][1].method).toBe('PUT');
   });
 });
+
+it('rejects JSON arrays instead of passing an invalid list to the UI', async () => {
+  mockFetch(200, []);
+  await expect(api.list()).rejects.toMatchObject({ code: 'INVALID_RESPONSE' });
+});
+it('rejects an unreadable JSON body', async () => {
+  global.fetch = jest.fn().mockResolvedValue({
+    status: 200,
+    ok: true,
+    json: async () => {
+      throw new SyntaxError('HTML');
+    },
+  });
+  await expect(api.list()).rejects.toMatchObject({ code: 'INVALID_RESPONSE' });
+});
