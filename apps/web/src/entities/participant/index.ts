@@ -1,6 +1,13 @@
-// Public API of the participant entity: the domain model, its API client, the
-// display helpers and the band chip. Other layers import from here, not the files.
+// Public API of the participant entity: the API client, the band chip and the
+// display helpers shared across features. Named exports keep the surface explicit.
 export { api } from './api';
 export { BandChip } from './BandChip';
-export * from './model';
-export * from './display';
+export {
+  BAND_CLASS,
+  bandLabel,
+  formatBmi,
+  formatDate,
+  heightLabel,
+  unitLabel,
+  weightUnit,
+} from './display';

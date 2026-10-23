@@ -6,11 +6,15 @@ import {
   ParticipantView,
 } from '@org/contracts';
 import { api } from '@/entities/participant';
+import { reportError } from '@/shared/report-error';
 import { ParticipantPage } from '@/widgets/participant-page';
 
 // The list reflects every mutation, so this route is rendered per request rather
 // than statically prerendered at build time.
 export const dynamic = 'force-dynamic';
+
+// Cap the server-side load so a slow/hanging API can't block the first paint.
+const SSR_TIMEOUT_MS = 3000;
 
 /**
  * Server Component: fetch the first page on the server for a data-complete first
@@ -21,14 +25,19 @@ export const dynamic = 'force-dynamic';
 export default async function HomePage() {
   let initialData: Paginated<ParticipantView> | null = null;
   try {
-    initialData = await api.list({
-      page: 1,
-      pageSize: DEFAULT_PAGE_SIZE,
-      sortBy: DEFAULT_SORT_FIELD,
-      sortDir: DEFAULT_SORT_DIR,
-    });
-  } catch {
-    // SSR fetch failed; the client will load the list on mount.
+    initialData = await api.list(
+      {
+        page: 1,
+        pageSize: DEFAULT_PAGE_SIZE,
+        sortBy: DEFAULT_SORT_FIELD,
+        sortDir: DEFAULT_SORT_DIR,
+      },
+      AbortSignal.timeout(SSR_TIMEOUT_MS),
+    );
+  } catch (error) {
+    // Unreachable, slow, or malformed API at render time: record the cause and
+    // fall back to a client load so the page still renders.
+    reportError(error, 'ssr-initial-load');
   }
   return <ParticipantPage initialData={initialData} />;
 }

@@ -11,19 +11,16 @@ import type { FormEvent } from 'react';
 import { ApiError } from '@/shared/http';
 import { reportError } from '@/shared/report-error';
 import { Button, Field, Input, Notice, cardSurface, cx } from '@/shared/ui';
+import { api, BandChip, formatBmi, weightUnit } from '@/entities/participant';
 import {
-  api,
-  BandChip,
   convertToUnit,
   emptyForm,
   FieldErrors,
-  formatBmi,
   fromView,
   FormValues,
   livePreview,
   validate,
-  weightUnit,
-} from '@/entities/participant';
+} from './model';
 
 interface Props {
   editing: ParticipantView | null;

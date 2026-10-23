@@ -24,6 +24,11 @@ const DEFAULT_QUERY: ListParticipantQuery = {
 
 export type Toast = { kind: 'success' | 'error'; message: string };
 
+/** Identity of a list view (query + manual-refresh counter), used to tell when
+ * the server-seeded first page still satisfies what the client would load. */
+const viewKey = (query: ListParticipantQuery, refresh: number): string =>
+  `${JSON.stringify(query)}#${refresh}`;
+
 /**
  * Owns the participant-list screen's data and interaction state: the query, the
  * current page, load/debounce lifecycle, edit target, and the transient toast.
@@ -42,9 +47,10 @@ export function useParticipantList(
   const [editing, setEditing] = useState<ParticipantView | null>(null);
   const [toast, setToast] = useState<Toast | null>(null);
   const [refresh, setRefresh] = useState(0);
-  // When the server seeded the first page, skip the initial client fetch (the
-  // debounce effect still fires on mount); later query/refresh changes load.
-  const seeded = useRef(Boolean(initialData));
+  // The view the server already seeded (null when unseeded). Comparing identity
+  // - rather than a consume-once flag - makes the initial-fetch skip idempotent
+  // under React StrictMode's double mount.
+  const seededView = useRef(initialData ? viewKey(DEFAULT_QUERY, 0) : null);
 
   // Monotonic request id: only the most recently issued load may touch state,
   // so a slow earlier response can't overwrite a newer one (stale-while-typing).
@@ -84,11 +90,14 @@ export function useParticipantList(
 
   // Debounced reload whenever the query (or a manual refresh) changes.
   useEffect(() => {
-    if (seeded.current) {
-      // First mount with server-provided data: it's already in state.
-      seeded.current = false;
+    if (
+      seededView.current !== null &&
+      seededView.current === viewKey(query, refresh)
+    ) {
+      // The server-seeded page already covers this exact view; don't refetch.
       return;
     }
+    seededView.current = null; // past the seeded view: always load from here on
     const handle = setTimeout(() => load(query), LIST_DEBOUNCE_MS);
     return () => {
       clearTimeout(handle);
