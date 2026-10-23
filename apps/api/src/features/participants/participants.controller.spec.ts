@@ -1,3 +1,4 @@
+import { VALIDATION_ERROR_DESCRIPTION } from '../../common/api.constants';
 import {
   PaginatedParticipantsDto,
   ParticipantDto,
@@ -56,6 +57,23 @@ describe('ParticipantsController', () => {
         ParticipantsController.prototype[method],
       ) as Record<string, { type?: unknown }>;
       expect(responses['200'].type).toBe(ParticipantDto);
+    }
+  });
+
+  it('documents the VALIDATION_FAILED 400 on every validating route', () => {
+    // Pins @ApiValidationErrorResponse: dropping it from any route (or
+    // changing the shared description) must fail here, not in generated
+    // client contracts downstream.
+    const methods = ['create', 'list', 'findById', 'update', 'remove'] as const;
+    for (const method of methods) {
+      const responses = Reflect.getMetadata(
+        'swagger/apiResponse',
+        ParticipantsController.prototype[method],
+      ) as Record<
+        string,
+        { description?: string; type?: unknown; isArray?: boolean }
+      >;
+      expect(responses['400']?.description).toBe(VALIDATION_ERROR_DESCRIPTION);
     }
   });
 
