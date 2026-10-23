@@ -33,6 +33,21 @@ interface Props {
 const LEGEND =
   'mb-2.5 text-[0.78rem] font-semibold uppercase tracking-[0.04em] text-muted';
 
+/** The raw measurement fields; editing one marks the set as user-touched. */
+const MEASUREMENT_FIELDS: ReadonlyArray<keyof FormValues> = [
+  'weight',
+  'heightCm',
+  'feet',
+  'inches',
+];
+type Measures = Pick<FormValues, 'weight' | 'heightCm' | 'feet' | 'inches'>;
+const pickMeasures = (v: FormValues): Measures => ({
+  weight: v.weight,
+  heightCm: v.heightCm,
+  feet: v.feet,
+  inches: v.inches,
+});
+
 export function ParticipantForm({
   editing,
   onSaved,
@@ -45,11 +60,23 @@ export function ParticipantForm({
   const [duplicate, setDuplicate] = useState<ParticipantView | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const submitInFlight = useRef(false);
+  // Bumped every time the edited record changes; a save that resolves against an
+  // old session must not clobber the form the user has since moved on to.
+  const sessionRef = useRef(0);
+  // Remembers the exact measurements last shown in each unit, so toggling units
+  // back and forth restores the original values instead of drifting them through
+  // repeated rounding. Reset whenever the edited record changes.
+  const unitSnapshots = useRef<Partial<Record<Unit, Measures>>>({});
+  const measurementEdited = useRef(false);
   // Latest email shown in the form, readable from an async handler after the
   // render-time closure has gone stale (the duplicate lookup below).
   const emailRef = useRef(values.email);
   useEffect(() => {
     emailRef.current = values.email;
+    // A changed email invalidates a duplicate match (and its inline error) found
+    // for the previous address - otherwise "Edit their record" points elsewhere.
+    setDuplicate(null);
+    setErrors((prev) => (prev.email ? { ...prev, email: undefined } : prev));
   }, [values.email]);
 
   // Keep the form in sync with the record being edited (or reset on cancel).
@@ -58,11 +85,31 @@ export function ParticipantForm({
     setErrors({});
     setServerError(null);
     setDuplicate(null);
+    sessionRef.current += 1;
+    unitSnapshots.current = {};
+    measurementEdited.current = false;
   }, [editing]);
 
   const preview = livePreview(values);
-  const set = (field: keyof FormValues) => (value: string) =>
+  const set = (field: keyof FormValues) => (value: string) => {
+    if (MEASUREMENT_FIELDS.includes(field)) measurementEdited.current = true;
     setValues((prev) => ({ ...prev, [field]: value }));
+  };
+
+  // Switch unit systems, restoring the untouched original values on a toggle-back
+  // (exact round-trip) and otherwise converting the current measurements.
+  const switchUnit = (to: Unit) => {
+    if (values.unit === to) return;
+    const snapshot = unitSnapshots.current[to];
+    const restore = !measurementEdited.current && snapshot;
+    unitSnapshots.current[values.unit] = pickMeasures(values);
+    measurementEdited.current = false;
+    setValues(
+      restore
+        ? { ...values, unit: to, ...snapshot }
+        : convertToUnit(values, to),
+    );
+  };
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
@@ -75,13 +122,18 @@ export function ParticipantForm({
     setSubmitting(true);
     setServerError(null);
     setDuplicate(null);
+    const session = sessionRef.current;
     try {
       const saved = editing
         ? await api.update(editing.id, input)
         : await api.create(input);
+      // The user may have switched to editing another record while this save was
+      // in flight; applying the result now would wipe that newer form.
+      if (sessionRef.current !== session) return;
       onSaved(saved, editing ? 'updated' : 'created');
       if (!editing) setValues(emptyForm());
     } catch (error) {
+      if (sessionRef.current !== session) return;
       await handleError(error);
     } finally {
       submitInFlight.current = false;
@@ -139,12 +191,13 @@ export function ParticipantForm({
         )}
       </div>
 
-      <fieldset className="mb-[18px] border-0 p-0">
+      <fieldset className="mb-[18px] border-0 p-0" disabled={submitting}>
         <legend className={LEGEND}>Demographics</legend>
         <div className="grid grid-cols-2 gap-[14px] max-[760px]:grid-cols-1">
           <Field id="firstName" label="First name" error={errors.firstName}>
             <Input
               id="firstName"
+              autoComplete="given-name"
               value={values.firstName}
               onChange={(e) => set('firstName')(e.target.value)}
             />
@@ -152,6 +205,7 @@ export function ParticipantForm({
           <Field id="lastName" label="Last name" error={errors.lastName}>
             <Input
               id="lastName"
+              autoComplete="family-name"
               value={values.lastName}
               onChange={(e) => set('lastName')(e.target.value)}
             />
@@ -160,6 +214,7 @@ export function ParticipantForm({
             <Input
               id="email"
               type="email"
+              autoComplete="email"
               value={values.email}
               onChange={(e) => set('email')(e.target.value)}
             />
@@ -167,6 +222,8 @@ export function ParticipantForm({
           <Field id="phone" label="Phone (optional)" error={errors.phone}>
             <Input
               id="phone"
+              type="tel"
+              autoComplete="tel"
               value={values.phone}
               onChange={(e) => set('phone')(e.target.value)}
             />
@@ -174,7 +231,7 @@ export function ParticipantForm({
         </div>
       </fieldset>
 
-      <fieldset className="mb-[18px] border-0 p-0">
+      <fieldset className="mb-[18px] border-0 p-0" disabled={submitting}>
         <legend className={LEGEND}>Measurements</legend>
 
         <div
@@ -197,7 +254,7 @@ export function ParticipantForm({
                 name="unit"
                 className="accent-primary"
                 checked={values.unit === u}
-                onChange={() => setValues((prev) => convertToUnit(prev, u))}
+                onChange={() => switchUnit(u)}
               />
               {u === Unit.US ? 'US (lb, ft/in)' : 'Metric (kg, cm)'}
             </label>
@@ -236,6 +293,8 @@ export function ParticipantForm({
                 <Input
                   aria-invalid={errors.feet ? true : undefined}
                   aria-describedby={errors.feet ? 'feet-error' : undefined}
+                  id="inches"
+                  name="inches"
                   aria-label="inches"
                   type="number"
                   min="0"

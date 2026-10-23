@@ -13,7 +13,10 @@ describe('api client', () => {
   afterEach(() => jest.restoreAllMocks());
 
   it('serialises only defined query params', async () => {
-    mockFetch(200, { data: [], pageInfo: {} });
+    mockFetch(200, {
+      data: [],
+      pageInfo: { page: 1, pageSize: 25, total: 0, totalPages: 1 },
+    });
     await api.list({ page: 2, search: 'ada', minBmi: undefined });
     const url = (global.fetch as jest.Mock).mock.calls[0][0] as string;
     expect(url).toContain('/participants?');
@@ -23,7 +26,10 @@ describe('api client', () => {
   });
 
   it('skips null and empty-string query params', async () => {
-    mockFetch(200, { data: [], pageInfo: {} });
+    mockFetch(200, {
+      data: [],
+      pageInfo: { page: 1, pageSize: 25, total: 0, totalPages: 1 },
+    });
     await api.list({ search: '', unit: null as never, page: 3 });
     const url = (global.fetch as jest.Mock).mock.calls[0][0] as string;
     expect(url).toContain('page=3');
@@ -60,7 +66,7 @@ describe('api client', () => {
   });
 
   it('uses the right HTTP verbs for get/create/update', async () => {
-    mockFetch(200, { id: '1' });
+    mockFetch(200, { id: '1', email: 'a@b.com', bmiValue: 22 });
     await api.get('1');
     await api.create({ a: 1 } as never);
     await api.update('1', { a: 2 } as never);
@@ -83,4 +89,16 @@ it('rejects an unreadable JSON body', async () => {
     },
   });
   await expect(api.list()).rejects.toMatchObject({ code: 'INVALID_RESPONSE' });
+});
+
+it('rejects a list whose pageInfo is incomplete (INVALID_RESPONSE)', async () => {
+  mockFetch(200, { data: [], pageInfo: { page: 1 } }); // missing total/totalPages
+  await expect(api.list()).rejects.toMatchObject({ code: 'INVALID_RESPONSE' });
+});
+
+it('rejects a participant missing required fields (INVALID_RESPONSE)', async () => {
+  mockFetch(200, { id: '1' }); // no email / bmiValue
+  await expect(api.get('1')).rejects.toMatchObject({
+    code: 'INVALID_RESPONSE',
+  });
 });

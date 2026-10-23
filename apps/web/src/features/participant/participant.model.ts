@@ -107,36 +107,39 @@ export function livePreview(
   };
 }
 
-/** Convert the current measurements when the unit toggle flips. */
+/**
+ * Convert the current measurements when the unit toggle flips. Weight and height
+ * are converted *independently*: an incomplete field is blanked without wiping
+ * the other, valid measurement. (Exact round-trips are preserved by the form,
+ * which restores the untouched original on toggle-back instead of re-converting.)
+ */
 export function convertToUnit(values: FormValues, to: Unit): FormValues {
   if (values.unit === to) return values;
+  const from = values.unit;
   const weight = num(values.weight);
   const height = heightValue(values);
-  if (!Number.isFinite(weight) || !Number.isFinite(height)) {
-    return {
-      ...values,
-      unit: to,
-      weight: '',
-      heightCm: '',
-      feet: '',
-      inches: '',
-    };
-  }
-  const converted = convertMeasurements(weight, height, values.unit, to);
-  const next: FormValues = {
-    ...values,
-    unit: to,
-    weight: String(converted.weight),
-  };
-  if (to === Unit.US) {
-    const { feet, inches } = inchesToFeetInches(converted.height);
-    next.feet = String(feet);
-    next.inches = String(inches);
-    next.heightCm = '';
+  const next: FormValues = { ...values, unit: to };
+
+  next.weight = Number.isFinite(weight)
+    ? String(convertMeasurements(weight, 0, from, to).weight)
+    : '';
+
+  if (Number.isFinite(height)) {
+    const convertedHeight = convertMeasurements(0, height, from, to).height;
+    if (to === Unit.US) {
+      const { feet, inches } = inchesToFeetInches(convertedHeight);
+      next.feet = String(feet);
+      next.inches = String(inches);
+      next.heightCm = '';
+    } else {
+      next.heightCm = String(convertedHeight);
+      next.feet = '';
+      next.inches = '';
+    }
   } else {
-    next.heightCm = String(converted.height);
     next.feet = '';
     next.inches = '';
+    next.heightCm = '';
   }
   return next;
 }

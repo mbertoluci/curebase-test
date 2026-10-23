@@ -347,7 +347,8 @@ it('blocks two submits before a render and allows a retry after failure', async 
     <ParticipantForm editing={null} {...handlers()} />,
   );
   fillValidUs();
-  const form = container.querySelector('form')!;
+  const form = container.querySelector('form');
+  if (!form) throw new Error('form not found');
   act(() => {
     fireEvent.submit(form);
     fireEvent.submit(form);

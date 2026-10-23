@@ -85,6 +85,7 @@ describe('HomePage', () => {
     await waitFor(() =>
       expect(mockApi.list).toHaveBeenCalledWith(
         expect.objectContaining({ search: 'ada', page: 1 }),
+        expect.anything(),
       ),
     );
   });
@@ -96,6 +97,7 @@ describe('HomePage', () => {
     await waitFor(() =>
       expect(mockApi.list).toHaveBeenCalledWith(
         expect.objectContaining({ sortBy: 'bmiValue' }),
+        expect.anything(),
       ),
     );
   });
@@ -142,6 +144,7 @@ describe('HomePage', () => {
     await waitFor(() =>
       expect(mockApi.list).toHaveBeenCalledWith(
         expect.objectContaining({ page: 2 }),
+        expect.anything(),
       ),
     );
   });
