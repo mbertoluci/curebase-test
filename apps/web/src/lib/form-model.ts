@@ -149,9 +149,10 @@ export function validate(values: FormValues): {
   errors: FieldErrors;
 } {
   const errors: FieldErrors = {};
+  const email = normalizeEmail(values.email);
   if (!values.firstName.trim()) errors.firstName = 'First name is required';
   if (!values.lastName.trim()) errors.lastName = 'Last name is required';
-  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(values.email))
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email))
     errors.email = 'Enter a valid email';
 
   const weight = num(values.weight);
@@ -188,7 +189,7 @@ export function validate(values: FormValues): {
     input: {
       firstName: values.firstName.trim(),
       lastName: values.lastName.trim(),
-      email: normalizeEmail(values.email),
+      email,
       phone: values.phone.trim() || null,
       weight,
       height,

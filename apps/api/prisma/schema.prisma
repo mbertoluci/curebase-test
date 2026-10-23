@@ -72,7 +72,7 @@ model Profile {
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  // NOTE: real uniqueness is a PARTIAL index (email WHERE deleted_at IS NULL),
+  // NOTE: real uniqueness is a PARTIAL index (lower(btrim(email)) WHERE deleted_at IS NULL),
   // added in the migration so a soft-deleted email can be re-registered.
   @@index([email])
   @@index([deletedAt])

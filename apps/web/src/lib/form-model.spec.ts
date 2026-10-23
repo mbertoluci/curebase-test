@@ -32,6 +32,12 @@ describe('form-model', () => {
       });
     });
 
+    it('normalizes email before validation', () => {
+      const result = validate({ ...usForm, email: '  Peter@X.COM  ' });
+      expect(result.errors).toEqual({});
+      expect(result.input?.email).toBe('peter@x.com');
+    });
+
     it('reports required fields and a bad email', () => {
       const { input, errors } = validate(emptyForm());
       expect(input).toBeUndefined();

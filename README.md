@@ -149,3 +149,7 @@ Auth/authorization (the `actor` comes from an `x-actor-id` header, defaulting to
 ### Measurement precision and BMI filters
 
 Weight and total height accept at most two decimal places, matching their database precision. Excess precision is rejected in both API writes and form validation, rather than silently changing measurements on save. Classification uses the unrounded BMI derived from these measurements; `bmiValue` remains rounded to two decimals for storage and numeric filtering (the UI displays one decimal). Thus `minBmi=25` can include a NORMAL record whose raw BMI is 24.9965 but stored value is 25.00. This is a numeric filter, not a category filter. Existing records written before this precision rule may need reconciliation if their stored BMI was calculated from higher-precision inputs.
+
+### Canonical email migration
+
+Email is trimmed and lowercased before API and form validation. Apply migrations when deploying this policy: the partial unique index now compares `lower(btrim(email))`, and existing emails are normalized. If active legacy rows collide under this policy, the migration rolls back; reconcile their identities before retrying, without silently merging participants. Soft-deleted emails remain reusable. Numeric sort ties use ascending participant id in both directions; offset pages are deterministic for an unchanged dataset, not a snapshot across concurrent writes.

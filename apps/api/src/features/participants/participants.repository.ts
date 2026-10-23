@@ -2,7 +2,10 @@ import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { classifyMeasurements, ParticipantView } from '@org/contracts';
 import { PrismaService } from '../../database/prisma.service';
-import { EmailAlreadyExistsError } from './participants.error';
+import {
+  EmailAlreadyExistsError,
+  ParticipantNotFoundError,
+} from './participants.error';
 import {
   CreateParticipantData,
   ParticipantFilter,
@@ -18,7 +21,7 @@ type ParticipantRow = Prisma.ParticipantGetPayload<{
 }>;
 
 /** The single "active" (not soft-deleted) predicate, reused by every read/write. */
-const ACTIVE: Prisma.ParticipantWhereInput = { deletedAt: null };
+const ACTIVE = { deletedAt: null } as const;
 
 /**
  * Data-access layer for participants. It is the ONLY place that knows the Prisma
@@ -41,7 +44,7 @@ export class ParticipantsRepository {
   /** Non-transactional read for GET /:id. */
   async findById(id: string): Promise<ParticipantView | null> {
     const row = await this.participants.findFirst({
-      where: { ...ACTIVE, id },
+      where: { ...ACTIVE, id, user: ACTIVE },
       include: participantInclude,
     });
     return row ? this.toView(row) : null;
@@ -53,7 +56,7 @@ export class ParticipantsRepository {
     id: string,
   ): Promise<ParticipantView | null> {
     const row = await tx.participant.findFirst({
-      where: { ...ACTIVE, id },
+      where: { ...ACTIVE, id, user: ACTIVE },
       include: participantInclude,
     });
     return row ? this.toView(row) : null;
@@ -129,34 +132,51 @@ export class ParticipantsRepository {
     const participantData = this.pickParticipant(data);
     try {
       await tx.participant.update({
-        where: { id },
+        where: { ...ACTIVE, id, user: ACTIVE },
         data: {
           ...participantData,
           ...(Object.keys(profileData).length > 0
-            ? { user: { update: { profile: { update: profileData } } } }
+            ? {
+                user: {
+                  update: {
+                    where: ACTIVE,
+                    data: {
+                      profile: { update: { where: ACTIVE, data: profileData } },
+                    },
+                  },
+                },
+              }
             : {}),
         },
       });
     } catch (error) {
-      throw this.translateWriteError(error, data.email ?? '');
+      throw this.translateWriteError(error, data.email ?? '', id);
     }
-    return (await this.findByIdTx(tx, id)) as ParticipantView;
+    const updated = await this.findByIdTx(tx, id);
+    if (!updated) throw new ParticipantNotFoundError(id);
+    return updated;
   }
 
   /** Soft-deletes the whole aggregate (participant + profile + user) in one tx. */
   async softDeleteTx(tx: Prisma.TransactionClient, id: string): Promise<void> {
     const row = await tx.participant.findFirst({
-      where: { ...ACTIVE, id },
+      where: { ...ACTIVE, id, user: ACTIVE },
       select: { userId: true },
     });
     if (!row) return; // caller already verified existence; nothing to do
     const deletedAt = new Date();
-    await tx.participant.update({ where: { id }, data: { deletedAt } });
-    await tx.profile.update({
-      where: { userId: row.userId },
+    await tx.participant.update({
+      where: { ...ACTIVE, id, user: ACTIVE },
       data: { deletedAt },
     });
-    await tx.user.update({ where: { id: row.userId }, data: { deletedAt } });
+    await tx.profile.update({
+      where: { ...ACTIVE, userId: row.userId },
+      data: { deletedAt },
+    });
+    await tx.user.update({
+      where: { ...ACTIVE, id: row.userId },
+      data: { deletedAt },
+    });
   }
 
   // --- mapping & query building (private) --------------------------------
@@ -168,8 +188,10 @@ export class ParticipantsRepository {
     // softDeleteTx always move them together). A missing one is a data-integrity
     // violation, not an empty-string participant - fail loudly (500) rather than
     // fabricate blank PII.
-    if (!profile) {
-      throw new Error(`participant ${row.id} has no profile (integrity)`);
+    if (!profile || profile.deletedAt !== null) {
+      throw new Error(
+        `participant ${row.id} has no active profile (integrity)`,
+      );
     }
     const weight = row.weight.toNumber();
     const height = row.height.toNumber();
@@ -194,7 +216,7 @@ export class ParticipantsRepository {
   }
 
   private buildWhere(filter: ParticipantFilter): Prisma.ParticipantWhereInput {
-    const where: Prisma.ParticipantWhereInput = { ...ACTIVE };
+    const where: Prisma.ParticipantWhereInput = { ...ACTIVE, user: ACTIVE };
 
     if (filter.unit) where.unit = filter.unit;
 
@@ -210,7 +232,7 @@ export class ParticipantsRepository {
         mode: 'insensitive' as const,
       };
       where.user = {
-        deletedAt: null,
+        ...ACTIVE,
         profile: {
           OR: [
             { firstName: contains },
@@ -260,7 +282,18 @@ export class ParticipantsRepository {
   }
 
   /** Map Prisma's unique-violation (the partial email index) to a domain error. */
-  private translateWriteError(error: unknown, email: string): unknown {
+  private translateWriteError(
+    error: unknown,
+    email: string,
+    id?: string,
+  ): unknown {
+    if (
+      id &&
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === 'P2025'
+    ) {
+      return new ParticipantNotFoundError(id);
+    }
     if (
       error instanceof Prisma.PrismaClientKnownRequestError &&
       error.code === 'P2002'
