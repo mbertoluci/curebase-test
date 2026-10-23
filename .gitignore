@@ -59,3 +59,12 @@ Thumbs.db
 out
 
 test-output
+
+# AI agent tooling and internal review notes (kept locally, out of the repo)
+.cursor/
+.gemini/
+.opencode/
+.codex/
+.agents/
+opencode.json
+docs/reviews/
