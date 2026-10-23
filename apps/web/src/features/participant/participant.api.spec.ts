@@ -66,7 +66,15 @@ describe('api client', () => {
   });
 
   it('uses the right HTTP verbs for get/create/update', async () => {
-    mockFetch(200, { id: '1', email: 'a@b.com', bmiValue: 22 });
+    mockFetch(200, {
+      id: '1',
+      email: 'a@b.com',
+      unit: 'METRIC',
+      weight: 70,
+      height: 175,
+      age: 30,
+      bmiValue: 22,
+    });
     await api.get('1');
     await api.create({ a: 1 } as never);
     await api.update('1', { a: 2 } as never);
@@ -97,8 +105,16 @@ it('rejects a list whose pageInfo is incomplete (INVALID_RESPONSE)', async () =>
 });
 
 it('rejects a participant missing required fields (INVALID_RESPONSE)', async () => {
-  mockFetch(200, { id: '1' }); // no email / bmiValue
+  mockFetch(200, { id: '1' }); // no email / bmiValue / measurements
   await expect(api.get('1')).rejects.toMatchObject({
     code: 'INVALID_RESPONSE',
   });
+});
+
+it('rejects a list whose rows are malformed (INVALID_RESPONSE)', async () => {
+  mockFetch(200, {
+    data: [{}], // a row missing every consumed field would crash the table
+    pageInfo: { page: 1, pageSize: 25, total: 1, totalPages: 1 },
+  });
+  await expect(api.list()).rejects.toMatchObject({ code: 'INVALID_RESPONSE' });
 });

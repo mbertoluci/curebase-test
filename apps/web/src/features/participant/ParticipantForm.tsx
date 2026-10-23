@@ -132,7 +132,14 @@ export function ParticipantForm({
       // in flight; applying the result now would wipe that newer form.
       if (sessionRef.current !== session) return;
       onSaved(saved, editing ? 'updated' : 'created');
-      if (!editing) setValues(emptyForm());
+      if (!editing) {
+        // A create clears the form in place (editing stays null, so the reset
+        // effect won't run) - drop the per-unit memory too, or the next entry's
+        // unit toggle would resurrect this participant's measurements.
+        setValues(emptyForm());
+        unitSnapshots.current = {};
+        measurementEdited.current = false;
+      }
     } catch (error) {
       if (sessionRef.current !== session) return;
       await handleError(error);
