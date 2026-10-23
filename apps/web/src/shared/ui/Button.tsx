@@ -3,14 +3,15 @@ import { cx } from './cx';
 
 export type ButtonVariant = 'primary' | 'ghost' | 'link';
 
-const BTN =
-  'cursor-pointer rounded-lg px-4 py-[9px] text-[0.92rem] disabled:cursor-not-allowed disabled:opacity-50';
+const BASE =
+  'inline-flex items-center justify-center gap-1.5 rounded-field px-4 py-2.5 text-[15px] font-semibold transition disabled:cursor-not-allowed disabled:opacity-40';
 
 const VARIANTS: Record<ButtonVariant, string> = {
-  primary: `${BTN} border border-primary-btn bg-primary-btn text-primary-ink hover:border-primary-btn`,
-  ghost: `${BTN} border border-border bg-transparent text-ink hover:border-primary`,
-  // A text button: no box, reads as a link.
-  link: 'cursor-pointer border-0 bg-transparent p-0 text-[0.9rem] text-primary hover:underline disabled:cursor-not-allowed disabled:opacity-50',
+  primary: `${BASE} bg-primary text-white hover:brightness-[.96] active:brightness-90`,
+  // iOS tinted gray button.
+  ghost: `${BASE} bg-[color-mix(in_srgb,var(--muted)_15%,transparent)] text-ink hover:bg-[color-mix(in_srgb,var(--muted)_24%,transparent)]`,
+  // A text button reading as a link.
+  link: 'inline-flex cursor-pointer items-center gap-1 bg-transparent p-0 text-[15px] font-medium text-primary transition hover:opacity-70 disabled:cursor-not-allowed disabled:opacity-40',
 };
 
 export function Button({

@@ -258,7 +258,7 @@ describe('ParticipantForm', () => {
     const h = handlers();
     mockApi.update.mockResolvedValue(view);
     render(<ParticipantForm editing={view} {...h} />);
-    expect(screen.getByText('Edit participant')).toBeTruthy();
+    // The form prefills from the edited record (the heading now lives in the page).
     expect(
       (screen.getByLabelText('First name') as HTMLInputElement).value,
     ).toBe('Ada');
@@ -276,7 +276,7 @@ describe('ParticipantForm', () => {
   it('cancels edit mode', () => {
     const h = handlers();
     render(<ParticipantForm editing={view} {...h} />);
-    fireEvent.click(screen.getByText('Cancel edit'));
+    fireEvent.click(screen.getByText('Cancel'));
     expect(h.onCancelEdit).toHaveBeenCalled();
   });
 
