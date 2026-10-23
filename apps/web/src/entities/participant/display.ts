@@ -1,11 +1,11 @@
 import { BMI_BAND_LABELS, BmiBand, Unit } from '@org/contracts';
 
-/** Tailwind background utility per band (restrained, not alarming). */
+/** Tinted label classes per band (tint background + accent text), iOS-style. */
 export const BAND_CLASS: Record<BmiBand, string> = {
-  [BmiBand.UNDERWEIGHT]: 'bg-band-under',
-  [BmiBand.NORMAL]: 'bg-band-normal',
-  [BmiBand.OVERWEIGHT]: 'bg-band-over',
-  [BmiBand.OBESE]: 'bg-band-obese',
+  [BmiBand.UNDERWEIGHT]: 'bg-band-under/15 text-band-under',
+  [BmiBand.NORMAL]: 'bg-band-normal/15 text-band-normal',
+  [BmiBand.OVERWEIGHT]: 'bg-band-over/15 text-band-over',
+  [BmiBand.OBESE]: 'bg-band-obese/15 text-band-obese',
 };
 
 export function bandLabel(band: BmiBand | null): string {

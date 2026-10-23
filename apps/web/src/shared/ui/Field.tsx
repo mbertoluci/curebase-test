@@ -13,10 +13,9 @@ function isForwardableControl(type: ElementType): boolean {
 }
 
 /**
- * Labelled field wrapper: a visible label plus accessible error wiring. When it
- * wraps a single native control and there's an error, it injects aria-invalid +
- * aria-describedby so screen readers announce invalidity and read the message;
- * compound controls (e.g. feet/inches) wire each input themselves.
+ * Labelled field wrapper: a small secondary label above the control plus
+ * accessible error wiring (aria-invalid + aria-describedby) injected when a
+ * single native-ish control has an error. Compound controls wire their inputs.
  */
 export function Field({
   id,
@@ -41,14 +40,14 @@ export function Field({
         })
       : children;
   return (
-    <div className={cx('flex flex-col gap-[5px]', className)}>
-      <label htmlFor={id} className="text-[0.83rem] text-muted">
+    <div className={cx('flex flex-col gap-1.5', className)}>
+      <label htmlFor={id} className="text-[13px] font-medium text-muted">
         {label}
       </label>
       {control}
       {error && (
         <span
-          className="text-[0.8rem] text-danger"
+          className="text-[13px] text-danger"
           id={`${id}-error`}
           role="alert"
         >

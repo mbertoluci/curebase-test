@@ -3,7 +3,7 @@ import { cx } from './cx';
 
 /** Shared control styling for text inputs and selects. */
 export const controlClass =
-  'w-full rounded-lg border border-border bg-surface px-2.5 py-[9px] text-[0.95rem] text-ink outline-none focus:outline-2 focus:outline-offset-1 focus:outline-primary aria-invalid:border-danger';
+  'w-full rounded-field border border-border bg-surface px-3 py-2.5 text-[15px] text-ink outline-none transition placeholder:text-faint focus:border-primary focus:ring-2 focus:ring-primary/25 aria-invalid:border-danger aria-invalid:focus:ring-danger/25';
 
 export function Input({
   className,

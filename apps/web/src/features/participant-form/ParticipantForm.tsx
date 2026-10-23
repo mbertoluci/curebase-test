@@ -189,17 +189,6 @@ export function ParticipantForm({
 
   return (
     <form className={cardSurface} onSubmit={handleSubmit} noValidate>
-      <div className="mb-3 flex items-center justify-between">
-        <h2 className="text-[1.15rem] font-semibold">
-          {editing ? 'Edit participant' : 'New participant'}
-        </h2>
-        {editing && (
-          <Button variant="ghost" onClick={onCancelEdit}>
-            Cancel edit
-          </Button>
-        )}
-      </div>
-
       <fieldset className="mb-[18px] border-0 p-0" disabled={submitting}>
         <legend className={LEGEND}>Demographics</legend>
         <div className="grid grid-cols-2 gap-[14px] max-tablet:grid-cols-1">
@@ -377,7 +366,12 @@ export function ParticipantForm({
       )}
       {serverError && <Notice tone="error">{serverError}</Notice>}
 
-      <div className="flex justify-end">
+      <div className="flex justify-end gap-2">
+        {editing && (
+          <Button variant="ghost" onClick={onCancelEdit}>
+            Cancel
+          </Button>
+        )}
         <Button variant="primary" type="submit" disabled={submitting}>
           {submitting
             ? 'Saving…'
