@@ -49,6 +49,15 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
       err?.details,
     );
   }
+  // A 2xx that should carry JSON but didn't (unreadable body, or an HTML page
+  // from a proxy) must not be handed back as a bogus T - fail with a clear code.
+  if (body === null || typeof body !== 'object') {
+    throw new ApiError(
+      res.status,
+      'INVALID_RESPONSE',
+      'The API returned a response that could not be read.',
+    );
+  }
   return body as T;
 }
 

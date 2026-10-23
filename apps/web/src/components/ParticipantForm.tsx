@@ -1,7 +1,8 @@
 'use client';
 
 import { normalizeEmail, ParticipantView, Unit } from '@org/contracts';
-import { useEffect, useRef, useState } from 'react';
+import { cloneElement, isValidElement, useEffect, useRef, useState } from 'react';
+import type { ReactElement, ReactNode } from 'react';
 import { api, ApiError } from '../lib/api';
 import { formatBmi, weightUnit } from '../lib/display';
 import {
@@ -54,6 +55,7 @@ export function ParticipantForm({
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
+    if (submitting) return; // ignore a re-submit (e.g. Enter) while one is in flight
     const { input, errors: validationErrors } = validate(values);
     setErrors(validationErrors);
     if (!input) return;
@@ -303,12 +305,22 @@ function Field({
   id: string;
   label: string;
   error?: string;
-  children: React.ReactNode;
+  children: ReactNode;
 }) {
+  // Wire the control to its error so screen readers announce invalidity and
+  // read the message (aria-invalid + aria-describedby). When the field wraps a
+  // single control we inject them; a compound field keeps the role="alert".
+  const control =
+    error && isValidElement(children)
+      ? cloneElement(children as ReactElement<Record<string, unknown>>, {
+          'aria-invalid': true,
+          'aria-describedby': `${id}-error`,
+        })
+      : children;
   return (
     <div className={`field ${error ? 'field--error' : ''}`}>
       <label htmlFor={id}>{label}</label>
-      {children}
+      {control}
       {error && (
         <span className="field__error" id={`${id}-error`} role="alert">
           {error}

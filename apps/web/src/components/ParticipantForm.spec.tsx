@@ -65,6 +65,10 @@ describe('ParticipantForm', () => {
     fireEvent.click(screen.getByRole('button', { name: /Save participant/ }));
     expect(await screen.findByText('First name is required')).toBeTruthy();
     expect(screen.getByText('Enter a valid email')).toBeTruthy();
+    // A11y: the invalid control is wired to its error message.
+    const firstName = screen.getByLabelText('First name');
+    expect(firstName.getAttribute('aria-invalid')).toBe('true');
+    expect(firstName.getAttribute('aria-describedby')).toBe('firstName-error');
     expect(mockApi.create).not.toHaveBeenCalled();
   });
 

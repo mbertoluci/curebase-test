@@ -217,7 +217,9 @@ export class ParticipantsService {
     age: number,
   ): number {
     const errors = measurementErrors(weight, height, unit, age);
-    if (errors.length > 0) throw new InputValidationError(errors);
+    if (errors.length > 0) {
+      throw new InputValidationError(errors.map((e) => e.message));
+    }
     return roundBmi(computeBmi(weight, height, unit), 2);
   }
 

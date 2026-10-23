@@ -90,44 +90,67 @@ export function convertMeasurements(
   };
 }
 
+/** Which input a domain error belongs to, so consumers route by field, not by
+ * parsing the message text. */
+export type MeasurementErrorField = 'weight' | 'height' | 'age' | 'unit';
+
+export interface MeasurementError {
+  field: MeasurementErrorField;
+  message: string;
+}
+
 /**
- * Business-rule validation for a measurement set. Returns a list of human
- * messages (empty = valid). This is the *domain* rule (per-unit plausibility +
+ * Business-rule validation for a measurement set. Returns a list of field-tagged
+ * errors (empty = valid). This is the *domain* rule (per-unit plausibility +
  * age), separate from the structural/type checks done at the DTO boundary, and
- * is shared so the web and the API agree on what counts as plausible.
+ * is shared so the web and the API agree on what counts as plausible. Each error
+ * carries its `field` so callers map to the right input without string-matching
+ * the message.
  */
 export function measurementErrors(
   weight: number,
   height: number,
   unit: Unit,
   age: number,
-): string[] {
-  const errors: string[] = [];
+): MeasurementError[] {
+  const errors: MeasurementError[] = [];
   const bounds = MEASUREMENT_BOUNDS[unit];
   if (!bounds) {
-    errors.push(`unit must be one of: ${Object.values(Unit).join(', ')}`);
+    errors.push({
+      field: 'unit',
+      message: `unit must be one of: ${Object.values(Unit).join(', ')}`,
+    });
     return errors;
   }
   const weightUnit = unit === Unit.US ? 'lb' : 'kg';
   const heightUnit = unit === Unit.US ? 'in' : 'cm';
   if (!(weight >= bounds.weight.min && weight <= bounds.weight.max)) {
-    errors.push(
-      `weight must be between ${bounds.weight.min} and ${bounds.weight.max} ${weightUnit}`,
-    );
+    errors.push({
+      field: 'weight',
+      message: `weight must be between ${bounds.weight.min} and ${bounds.weight.max} ${weightUnit}`,
+    });
   } else if (!hasMeasurementPrecision(weight)) {
-    errors.push('weight must have at most 2 decimal places');
+    errors.push({
+      field: 'weight',
+      message: 'weight must have at most 2 decimal places',
+    });
   }
   if (!(height >= bounds.height.min && height <= bounds.height.max)) {
-    errors.push(
-      `height must be between ${bounds.height.min} and ${bounds.height.max} ${heightUnit}`,
-    );
+    errors.push({
+      field: 'height',
+      message: `height must be between ${bounds.height.min} and ${bounds.height.max} ${heightUnit}`,
+    });
   } else if (!hasMeasurementPrecision(height)) {
-    errors.push('height must have at most 2 decimal places');
+    errors.push({
+      field: 'height',
+      message: 'height must have at most 2 decimal places',
+    });
   }
   if (!Number.isInteger(age) || age < AGE_BOUNDS.min || age > AGE_BOUNDS.max) {
-    errors.push(
-      `age must be a whole number between ${AGE_BOUNDS.min} and ${AGE_BOUNDS.max}`,
-    );
+    errors.push({
+      field: 'age',
+      message: `age must be a whole number between ${AGE_BOUNDS.min} and ${AGE_BOUNDS.max}`,
+    });
   }
   return errors;
 }

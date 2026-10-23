@@ -173,12 +173,12 @@ export function validate(values: FormValues): {
     Number.isInteger(age)
   ) {
     const domain = measurementErrors(weight, height, values.unit, age);
-    for (const message of domain) {
-      if (message.startsWith('weight')) errors.weight = message;
-      else if (message.startsWith('height'))
+    for (const { field, message } of domain) {
+      if (field === 'weight') errors.weight = message;
+      else if (field === 'height')
         errors[values.unit === Unit.US ? 'feet' : 'heightCm'] = message;
-      else if (message.startsWith('age')) errors.age = message;
-      else errors.form = message;
+      else if (field === 'age') errors.age = message;
+      else errors.form = message; // 'unit'
     }
   }
 
