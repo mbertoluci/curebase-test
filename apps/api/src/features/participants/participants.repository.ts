@@ -17,6 +17,9 @@ type ParticipantRow = Prisma.ParticipantGetPayload<{
   include: typeof participantInclude;
 }>;
 
+/** The single "active" (not soft-deleted) predicate, reused by every read/write. */
+const ACTIVE: Prisma.ParticipantWhereInput = { deletedAt: null };
+
 /**
  * Data-access layer for participants. It is the ONLY place that knows the Prisma
  * schema: it builds queries, converts Decimal/Date entities into the plain
@@ -38,7 +41,7 @@ export class ParticipantsRepository {
   /** Non-transactional read for GET /:id. */
   async findById(id: string): Promise<ParticipantView | null> {
     const row = await this.participants.findFirst({
-      where: { id, deletedAt: null },
+      where: { ...ACTIVE, id },
       include: participantInclude,
     });
     return row ? this.toView(row) : null;
@@ -50,7 +53,7 @@ export class ParticipantsRepository {
     id: string,
   ): Promise<ParticipantView | null> {
     const row = await tx.participant.findFirst({
-      where: { id, deletedAt: null },
+      where: { ...ACTIVE, id },
       include: participantInclude,
     });
     return row ? this.toView(row) : null;
@@ -143,7 +146,7 @@ export class ParticipantsRepository {
   /** Soft-deletes the whole aggregate (participant + profile + user) in one tx. */
   async softDeleteTx(tx: Prisma.TransactionClient, id: string): Promise<void> {
     const row = await tx.participant.findFirst({
-      where: { id, deletedAt: null },
+      where: { ...ACTIVE, id },
       select: { userId: true },
     });
     if (!row) return; // caller already verified existence; nothing to do
@@ -161,14 +164,21 @@ export class ParticipantsRepository {
   /** The single entity -> DTO boundary: Decimal -> number, Date -> ISO, derive band. */
   private toView(row: ParticipantRow): ParticipantView {
     const profile = row.user.profile;
+    // An active participant must have an active profile (createTx and
+    // softDeleteTx always move them together). A missing one is a data-integrity
+    // violation, not an empty-string participant - fail loudly (500) rather than
+    // fabricate blank PII.
+    if (!profile) {
+      throw new Error(`participant ${row.id} has no profile (integrity)`);
+    }
     const weight = row.weight.toNumber();
     const height = row.height.toNumber();
     return {
       id: row.id,
-      firstName: profile?.firstName ?? '',
-      lastName: profile?.lastName ?? '',
-      email: profile?.email ?? '',
-      phone: profile?.phone ?? null,
+      firstName: profile.firstName,
+      lastName: profile.lastName,
+      email: profile.email,
+      phone: profile.phone ?? null,
       weight,
       height,
       unit: row.unit,
@@ -184,7 +194,7 @@ export class ParticipantsRepository {
   }
 
   private buildWhere(filter: ParticipantFilter): Prisma.ParticipantWhereInput {
-    const where: Prisma.ParticipantWhereInput = { deletedAt: null };
+    const where: Prisma.ParticipantWhereInput = { ...ACTIVE };
 
     if (filter.unit) where.unit = filter.unit;
 
@@ -215,13 +225,17 @@ export class ParticipantsRepository {
 
   private buildOrderBy(
     sort: ParticipantSort,
-  ): Prisma.ParticipantOrderByWithRelationInput {
-    if (sort.field === 'lastName') {
-      return { user: { profile: { lastName: sort.direction } } };
-    }
-    return {
-      [sort.field]: sort.direction,
-    } as Prisma.ParticipantOrderByWithRelationInput;
+  ): Prisma.ParticipantOrderByWithRelationInput[] {
+    const primary: Prisma.ParticipantOrderByWithRelationInput =
+      sort.field === 'lastName'
+        ? { user: { profile: { lastName: sort.direction } } }
+        : ({
+            [sort.field]: sort.direction,
+          } as Prisma.ParticipantOrderByWithRelationInput);
+    // Tie-break on the primary key so pagination is stable when the sort key
+    // repeats (e.g. many rows with the same age) - otherwise a row can skip or
+    // repeat across pages.
+    return [primary, { id: 'asc' }];
   }
 
   private pickProfile(data: UpdateParticipantData): Prisma.ProfileUpdateInput {

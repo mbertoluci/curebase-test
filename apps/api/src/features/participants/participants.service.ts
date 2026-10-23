@@ -3,6 +3,8 @@ import {
   computeBmi,
   CreateParticipantInput,
   DEFAULT_PAGE_SIZE,
+  DEFAULT_SORT_DIR,
+  DEFAULT_SORT_FIELD,
   ListParticipantsQuery,
   measurementErrors,
   MAX_PAGE_SIZE,
@@ -82,6 +84,18 @@ export class ParticipantsService {
       const before = await this.repository.findByIdTx(tx, id);
       if (!before) throw new ParticipantNotFoundError(id);
 
+      // Changing the unit reinterprets weight+height, so the old stored values
+      // (in the old unit) can't be reused: both must be supplied in the new unit.
+      if (
+        patch.unit !== undefined &&
+        patch.unit !== before.unit &&
+        (patch.weight === undefined || patch.height === undefined)
+      ) {
+        throw new InputValidationError([
+          'weight and height are required when changing the unit',
+        ]);
+      }
+
       const data: UpdateParticipantData = { ...this.pickContact(patch) };
 
       // Recompute BMI only if a measurement input changed, using the merged set.
@@ -128,6 +142,8 @@ export class ParticipantsService {
       MAX_PAGE_SIZE,
     );
 
+    this.assertRangeOrder(query);
+
     const filter: ParticipantFilter = {
       search: query.search,
       unit: query.unit,
@@ -137,8 +153,8 @@ export class ParticipantsService {
       maxAge: query.maxAge,
     };
     const sort: ParticipantSort = {
-      field: query.sortBy ?? 'createdAt',
-      direction: query.sortDir ?? 'desc',
+      field: query.sortBy ?? DEFAULT_SORT_FIELD,
+      direction: query.sortDir ?? DEFAULT_SORT_DIR,
     };
 
     const { data, total } = await this.repository.list(filter, sort, {
@@ -172,6 +188,26 @@ export class ParticipantsService {
   }
 
   // --- helpers -----------------------------------------------------------
+
+  /** Reject inverted filter ranges (min greater than max) with a 400, not silence. */
+  private assertRangeOrder(query: ListParticipantsQuery): void {
+    const errors: string[] = [];
+    if (
+      query.minBmi !== undefined &&
+      query.maxBmi !== undefined &&
+      query.minBmi > query.maxBmi
+    ) {
+      errors.push('minBmi must not be greater than maxBmi');
+    }
+    if (
+      query.minAge !== undefined &&
+      query.maxAge !== undefined &&
+      query.minAge > query.maxAge
+    ) {
+      errors.push('minAge must not be greater than maxAge');
+    }
+    if (errors.length > 0) throw new InputValidationError(errors);
+  }
 
   /** Validate the per-unit business rule, then compute + round the BMI. */
   private deriveBmi(

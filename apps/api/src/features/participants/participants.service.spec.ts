@@ -195,6 +195,29 @@ describe('ParticipantsService', () => {
       ).rejects.toBeInstanceOf(ParticipantNotFoundError);
     });
 
+    it('requires weight+height when the unit changes (old values are in the old unit)', async () => {
+      repository.findByIdTx.mockResolvedValue(view({ unit: Unit.METRIC }));
+      await expect(
+        service.update('p1', { unit: Unit.US }, 'editor'),
+      ).rejects.toBeInstanceOf(InputValidationError);
+      await expect(
+        service.update('p1', { unit: Unit.US, weight: 154 }, 'editor'),
+      ).rejects.toBeInstanceOf(InputValidationError);
+      expect(repository.updateTx).not.toHaveBeenCalled();
+    });
+
+    it('accepts a unit change when weight and height are both supplied', async () => {
+      repository.findByIdTx.mockResolvedValue(view({ unit: Unit.METRIC }));
+      await service.update(
+        'p1',
+        { unit: Unit.US, weight: 154, height: 69 },
+        'editor',
+      );
+      const patch = repository.updateTx.mock.calls[0][2];
+      expect(patch.unit).toBe(Unit.US);
+      expect(patch.bmiValue).toBeCloseTo(22.74, 1); // 703*154/69^2
+    });
+
     it('merges provided height/unit with the existing weight/age', async () => {
       repository.findByIdTx.mockResolvedValue(
         view({ weight: 60, height: 170, unit: Unit.METRIC, age: 25 }),
@@ -237,6 +260,16 @@ describe('ParticipantsService', () => {
         total: 1,
         totalPages: 1,
       });
+    });
+
+    it.each([
+      { minBmi: 30, maxBmi: 18 },
+      { minAge: 60, maxAge: 20 },
+    ])('rejects an inverted range %j with a 400', async (query) => {
+      await expect(service.list(query)).rejects.toBeInstanceOf(
+        InputValidationError,
+      );
+      expect(repository.list).not.toHaveBeenCalled();
     });
   });
 

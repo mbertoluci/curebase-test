@@ -23,6 +23,20 @@ describe('CreateParticipantDto', () => {
     expect(dto.age).toBe(30);
   });
 
+  it('normalizes the email (trim + lowercase) before validation', async () => {
+    const dto = plainToInstance(CreateParticipantDto, {
+      firstName: 'Ada',
+      lastName: 'Lovelace',
+      email: '  ADA@Example.COM ',
+      weight: '80',
+      height: '180',
+      unit: 'METRIC',
+      age: '30',
+    });
+    expect(await validate(dto)).toHaveLength(0);
+    expect(dto.email).toBe('ada@example.com');
+  });
+
   it('flags missing name, bad email, non-enum unit and out-of-range age', async () => {
     const dto = plainToInstance(CreateParticipantDto, {
       firstName: '',
