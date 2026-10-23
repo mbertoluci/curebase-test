@@ -16,6 +16,25 @@ export class ParticipantNotFoundError extends AppException {
   }
 }
 
+/**
+ * An active participant has no active profile - a data-integrity violation that
+ * should never happen (create and soft-delete move them together). It is a 500
+ * (internal), flattened to a generic message by the global filter; the detail
+ * is logged server-side, never fabricated into a blank-PII participant.
+ */
+export class ParticipantIntegrityError extends AppException {
+  static readonly httpStatus = HttpStatus.INTERNAL_SERVER_ERROR;
+  static readonly code = ErrorCode.INTERNAL_ERROR;
+
+  constructor(id: string) {
+    super(
+      ParticipantIntegrityError.code,
+      ParticipantIntegrityError.httpStatus,
+      `Participant "${id}" has no active profile (data integrity)`,
+    );
+  }
+}
+
 /** An active participant already uses this email (partial unique index hit). */
 export class EmailAlreadyExistsError extends AppException {
   static readonly httpStatus = HttpStatus.CONFLICT;

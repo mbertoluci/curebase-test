@@ -20,8 +20,19 @@ export interface CreateParticipantData {
   bmiValue: number;
 }
 
-/** Partial patch for an update; only the provided fields change. */
-export type UpdateParticipantData = Partial<CreateParticipantData>;
+/** Fields a caller may change on update - never the derived BMI (G08/B5). */
+export type UpdateParticipantInputData = Partial<
+  Omit<CreateParticipantData, 'bmiValue'>
+>;
+
+/**
+ * What the repository persists on update: the caller's input fields plus, only
+ * when a measurement changed, the BMI the service derives. bmiValue can only be
+ * set here by the service, not by anything mapping external input.
+ */
+export type UpdateParticipantData = UpdateParticipantInputData & {
+  bmiValue?: number;
+};
 
 /** Allow-listed filters for the list query (translated from the HTTP query DTO). */
 export interface ParticipantFilter {

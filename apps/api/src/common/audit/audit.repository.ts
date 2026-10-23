@@ -23,14 +23,14 @@ export interface AuditEntry {
 }
 
 /**
- * Writes the append-only audit trail. `record` takes a Prisma transaction client
- * so the audit row is committed atomically with the mutation it describes - there
- * is never a data change without its audit entry, nor an entry for a rolled-back
- * change. before/after keep the real values (PII included) on purpose; this table
- * is access-controlled and never echoed to logs.
+ * The only place the audit_logs table is written. `record` takes a Prisma
+ * transaction client so the audit row commits atomically with the mutation it
+ * describes - there is never a data change without its audit entry, nor an entry
+ * for a rolled-back change. before/after keep the real values (PII included) on
+ * purpose; this table is access-controlled and never echoed to logs.
  */
 @Injectable()
-export class AuditService {
+export class AuditRepository {
   async record(tx: Prisma.TransactionClient, entry: AuditEntry): Promise<void> {
     await tx.auditLog.create({
       data: {

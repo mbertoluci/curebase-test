@@ -16,32 +16,32 @@ import {
 import {
   AuditAction,
   AuditEntity,
-  AuditService,
-} from '../../common/audit/audit.service';
+} from '../../common/audit/audit.repository';
 import { InputValidationError } from '../../common/errors/validation.error';
-import { PrismaService } from '../../database/prisma.service';
 import { ParticipantNotFoundError } from './participant.error';
 import { ParticipantRepository } from './participant.repository';
+import { ParticipantUnitOfWork } from './participant.unit-of-work';
 import {
   CreateParticipantData,
   ParticipantFilter,
   ParticipantSort,
   UpdateParticipantData,
+  UpdateParticipantInputData,
 } from './participant.type';
 
 /**
  * Application/domain layer. Owns:
  *  - the BMI derivation (compute-and-store, recomputed on every change);
  *  - the per-unit plausibility business rule;
- *  - the transaction boundary, so each mutation and its audit row commit together.
- * It speaks DTOs in and out; the repository handles persistence.
+ *  - the use case run inside the unit of work (which owns the transaction).
+ * It speaks DTOs in and out and never touches Prisma: reads go through the
+ * repository, writes through the unit of work.
  */
 @Injectable()
 export class ParticipantService {
   constructor(
-    private readonly prisma: PrismaService,
     private readonly repository: ParticipantRepository,
-    private readonly audit: AuditService,
+    private readonly uow: ParticipantUnitOfWork,
   ) {}
 
   async create(
@@ -66,9 +66,9 @@ export class ParticipantService {
       bmiValue,
     };
 
-    return this.prisma.$transaction(async (tx) => {
-      const created = await this.repository.createTx(tx, data);
-      await this.audit.record(tx, {
+    return this.uow.run(async (tx) => {
+      const created = await tx.create(data);
+      await tx.audit({
         actor,
         action: AuditAction.CREATE,
         entity: AuditEntity.PARTICIPANT,
@@ -84,8 +84,8 @@ export class ParticipantService {
     patch: UpdateParticipantInput,
     actor: string,
   ): Promise<ParticipantView> {
-    return this.prisma.$transaction(async (tx) => {
-      const before = await this.repository.findByIdTx(tx, id);
+    return this.uow.run(async (tx) => {
+      const before = await tx.findById(id);
       if (!before) throw new ParticipantNotFoundError(id);
 
       // Changing the unit reinterprets weight+height, so the old stored values
@@ -118,8 +118,8 @@ export class ParticipantService {
         Object.assign(data, { weight, height, unit, age, bmiValue });
       }
 
-      const after = await this.repository.updateTx(tx, id, data);
-      await this.audit.record(tx, {
+      const after = await tx.update(id, data);
+      await tx.audit({
         actor,
         action: AuditAction.UPDATE,
         entity: AuditEntity.PARTICIPANT,
@@ -177,11 +177,11 @@ export class ParticipantService {
   }
 
   async remove(id: string, actor: string): Promise<void> {
-    await this.prisma.$transaction(async (tx) => {
-      const before = await this.repository.findByIdTx(tx, id);
+    await this.uow.run(async (tx) => {
+      const before = await tx.findById(id);
       if (!before) throw new ParticipantNotFoundError(id);
-      await this.repository.softDeleteTx(tx, id);
-      await this.audit.record(tx, {
+      await tx.softDelete(id);
+      await tx.audit({
         actor,
         action: AuditAction.DELETE,
         entity: AuditEntity.PARTICIPANT,
@@ -227,8 +227,10 @@ export class ParticipantService {
     return roundBmi(computeBmi(weight, height, unit), 2);
   }
 
-  private pickContact(patch: UpdateParticipantInput): UpdateParticipantData {
-    const data: UpdateParticipantData = {};
+  private pickContact(
+    patch: UpdateParticipantInput,
+  ): UpdateParticipantInputData {
+    const data: UpdateParticipantInputData = {};
     if (patch.firstName !== undefined) data.firstName = patch.firstName;
     if (patch.lastName !== undefined) data.lastName = patch.lastName;
     if (patch.email !== undefined) data.email = patch.email;

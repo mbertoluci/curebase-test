@@ -3,7 +3,6 @@ import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
 import helmet from 'helmet';
 import { Logger } from 'nestjs-pino';
-import { useContainer } from 'class-validator';
 import { AppModule } from './app/app.module';
 import { APP_CONFIG, AppConfig } from './config/configuration';
 
@@ -21,9 +20,6 @@ async function bootstrap(): Promise<void> {
   app.use(helmet({ contentSecurityPolicy: false }));
 
   app.setGlobalPrefix(config.globalPrefix);
-
-  // Let class-validator resolve DI-backed constraints from Nest.
-  useContainer(app.select(AppModule), { fallbackOnErrors: true });
 
   app.enableCors({ origin: config.corsOrigins });
 

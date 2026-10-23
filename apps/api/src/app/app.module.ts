@@ -4,7 +4,6 @@ import { APP_FILTER, APP_PIPE } from '@nestjs/core';
 import { LoggerModule } from 'nestjs-pino';
 import { AuditModule } from '../common/audit/audit.module';
 import { AllExceptionsFilter } from '../common/errors/all-exceptions.filter';
-import { ValidationModule } from '../common/validation/validation.module';
 import { APP_CONFIG, AppConfig, loadConfig } from '../config/configuration';
 import { serializeRequest } from './request-serializer';
 import { DatabaseModule } from '../database/database.module';
@@ -40,7 +39,6 @@ import { AppController } from './app.controller';
     }),
     DatabaseModule,
     AuditModule,
-    ValidationModule,
     ParticipantModule,
   ],
   controllers: [AppController],
