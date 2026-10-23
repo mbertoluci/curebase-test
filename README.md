@@ -90,9 +90,9 @@ The frontend uses a Feature-Sliced layout: dependencies flow strictly downward
 API via `index.ts`.
 
 - **entities/participant** - the domain noun: model + validation, the API client (which validates the response shape), display helpers, and the band chip.
-- **features/** - user interactions: `participant-form` (create/edit) and `participant-list` (search, filter, sort, paginate, delete).
-- **widgets/participant-page** - composes the features into the screen.
-- **shared/** - framework-agnostic building blocks: the fetch wrapper (`ApiError` + `request`), the error sink, and the UI primitives.
+- **features/** - user interactions: `participant-form` (create/edit, shown in a modal) and `participant-list` (search, filter, sort, paginate, delete).
+- **widgets/participant-page** - composes the features into the screen: the list and its filters are the main view, with an "Add participant" action that opens the form in a modal.
+- **shared/** - framework-agnostic building blocks: the fetch wrapper (`ApiError` + `request`), the error normalizer (`api-error.ts`, which splits a failed request into per-field errors vs a form-level message), the error sink, and the UI primitives (including an accessible `<dialog>`-based modal).
 
 The layering is **lint-enforced** (`import/no-restricted-paths`): `entities/`, for example, cannot import a feature. Cross-slice imports use the `@/` alias. The layout is deliberately feature-sliced-_lite_ (no full `pages`/`views` ceremony) - right-sized for one feature, not gold-plated.
 
@@ -165,7 +165,7 @@ A **Husky pre-commit** hook formats staged files and runs `nx affected -t typech
 
 **How is user input handled safely?** Prisma parameterises every query (no string-built SQL). DTO whitelisting drops unexpected fields. Request logs record only the id, method and path - never the query string (which can carry PII like `?search=<email>`) and never request headers; sensitive headers are additionally redacted as defence in depth. Ids are validated as UUIDs (`ParseUUIDPipe`).
 
-**Error handling.** A single `AppException` base carries a stable `code` + HTTP status; a global filter converts everything (domain errors, Nest `HttpException`, unknown bugs) into one envelope. 4xx carry a safe, client-caused message; every 5xx (including a thrown `HttpException`) is flattened to a generic message with no `details`, so an internal or PII-bearing message is never echoed to the client. The full error is logged server-side only. `@Throws(...)` on controllers declares expected errors and feeds OpenAPI, so the docs can't drift from the code.
+**Error handling.** A single `AppException` base carries a stable `code` + HTTP status; a global filter converts everything (domain errors, Nest `HttpException`, unknown bugs) into one envelope. 4xx carry a safe, client-caused message; every 5xx (including a thrown `HttpException`) is flattened to a generic message with no `details`, so an internal or PII-bearing message is never echoed to the client. The full error is logged server-side only. On the web, a single normalizer (`shared/api-error.ts`) consumes that same envelope and splits it back into per-field messages (matched to the form controls) and one form-level banner, so the UI branches on the stable `code` - never the human message. `@Throws(...)` on controllers declares expected errors and feeds OpenAPI, so the docs can't drift from the code.
 
 **Transport hardening.** `helmet` sets the standard security headers (CSP is left off because the only HTML served is the dev Swagger UI; a browser-facing app would ship a real policy). CORS is an explicit origin allow-list (`WEB_ORIGIN`), not a wildcard. The Swagger UI is served outside production only, so a deployed instance does not publish its full API surface.
 
