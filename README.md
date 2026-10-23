@@ -41,7 +41,7 @@ apps/
       common/
         errors/        AppException base, global exception filter, @Throws
         validation/    generic @Exists validator (+ module)
-        audit/         AuditService (append-only audit_log, same-tx writes)
+        audit/         AuditService (append-only audit_logs, same-tx writes)
       features/
         participants/  controller · dto · service · repository · type · error · module
   api-e2e/             HTTP smoke tests against a running API
@@ -74,7 +74,7 @@ HTTP → Controller → Service → Repository → Prisma → Postgres
 | `users` | id, timestamps, `deleted_at` |
 | `profiles` | user_id, first/last name, email, phone, `deleted_at` |
 | `participants` | user_id, weight, height, `unit` (US\|METRIC), `bmi_value`, age, `deleted_at` |
-| `audit_log` | actor, action, entity, entity_id, before, after (append-only) |
+| `audit_logs` | actor, action, entity, entity_id, before, after (append-only) |
 
 - **BMI**: `US = 703·lb/in²`, `METRIC = kg/m²` (height entered in cm). Computed server-side, stored to 2dp, **recomputed on every update**, displayed to 1dp. WHO bands: `<18.5` under · `<25` normal · `<30` over · `≥30` obese; `null` under age 18 (no pediatric curves).
 - **Soft-delete only**: nothing is ever hard-deleted. A **partial unique index** (`profiles.email WHERE deleted_at IS NULL`) enforces one active email while still allowing a deleted email to be re-registered.
@@ -138,7 +138,7 @@ A **Husky pre-commit** hook formats staged files and runs `nx affected -t typech
 
 **Soft-delete.** Enforced per-query with an explicit `deleted_at IS NULL` filter (clear and greppable). A global Prisma Client Extension would centralise it further; it was left out to keep the data access obvious to read.
 
-**Auditability.** An app-level, append-only `audit_log` written in the **same transaction** as each mutation (actor + before/after). It intentionally keeps real values (PII) and is exempt from log redaction and soft-delete. DB-trigger history would be tamper-proof against raw SQL - a good hardening step.
+**Auditability.** An app-level, append-only `audit_logs` written in the **same transaction** as each mutation (actor + before/after). It intentionally keeps real values (PII) and is exempt from log redaction and soft-delete. DB-trigger history would be tamper-proof against raw SQL - a good hardening step.
 
 **Why `age` as an integer?** It matches the given schema. Date-of-birth (deriving age at read) is the clinically correct choice and would be the first schema change I'd propose.
 
@@ -153,3 +153,5 @@ Weight and total height accept at most two decimal places, matching their databa
 ### Canonical email migration
 
 Email is trimmed and lowercased before API and form validation. Apply migrations when deploying this policy: the partial unique index now compares `lower(btrim(email))`, and existing emails are normalized. If active legacy rows collide under this policy, the migration rolls back; reconcile their identities before retrying, without silently merging participants. Soft-deleted emails remain reusable. Numeric sort ties use ascending participant id in both directions; offset pages are deterministic for an unchanged dataset, not a snapshot across concurrent writes.
+
+Prisma query diagnostics are enabled outside production at `LOG_LEVEL=debug`: they report only an allow-listed SQL operation and duration. SQL text, parameters and free-form engine warn/error messages are omitted because they can contain PII or audit snapshots. Production emits no query events, even with debug logging enabled; warn/error events retain their severity with a generic message.

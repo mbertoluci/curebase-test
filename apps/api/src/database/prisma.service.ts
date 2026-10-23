@@ -44,11 +44,36 @@ export class PrismaService
   async onModuleInit(): Promise<void> {
     if (!this.isProduction) {
       this.$on('query', (event) => {
-        this.logger.debug(`${event.query} [${event.params}] - ${event.duration}ms`);
+        // Both params and raw SQL can contain PII (including audit snapshots).
+        // Allow-list only the operation, never log arbitrary SQL or values.
+        const operation = event.query.trim().split(/\s+/, 1)[0].toUpperCase();
+        const safeOperation = [
+          'SELECT',
+          'INSERT',
+          'UPDATE',
+          'DELETE',
+          'BEGIN',
+          'COMMIT',
+          'ROLLBACK',
+        ].includes(operation)
+          ? operation
+          : 'OTHER';
+        this.logger.debug(
+          `Prisma query ${safeOperation} - ${event.duration}ms`,
+        );
       });
     }
-    this.$on('warn', (event) => this.logger.warn(event.message));
-    this.$on('error', (event) => this.logger.error(event.message));
+    // Engine messages may include SQL, parameters or rejected row contents.
+    this.$on('warn', () =>
+      this.logger.warn(
+        'Prisma warning (details omitted to protect sensitive data)',
+      ),
+    );
+    this.$on('error', () =>
+      this.logger.error(
+        'Prisma error (details omitted to protect sensitive data)',
+      ),
+    );
 
     await this.$connect();
     this.logger.log('Connected to the database');
