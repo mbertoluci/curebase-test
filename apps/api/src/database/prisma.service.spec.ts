@@ -38,10 +38,15 @@ describe('PrismaService log privacy', () => {
         // Parameterized template passes through (placeholders, no literals);
         // an inlined quoted literal is redacted; a bare value (not SQL)
         // degrades to an allow-listed operation - the value never appears.
+        // CTE (WITH ...) and SAVEPOINT statements are the shapes Prisma emits
+        // for nested writes and interactive transactions; both must log the
+        // full scrubbed template, not degrade to OTHER.
         for (const sql of [
           'SELECT "id" FROM "profiles" WHERE email = $1',
           'SELECT "id" FROM "profiles" WHERE email = \'private@example.com\'',
           'private@example.com',
+          'WITH "new_row" AS (INSERT INTO "users" VALUES ($1)) SELECT * FROM "new_row"',
+          'SAVEPOINT somename',
         ]) {
           query({
             timestamp: new Date(),
@@ -59,6 +64,10 @@ describe('PrismaService log privacy', () => {
             "Prisma query SELECT \"id\" FROM \"profiles\" WHERE email = '…' - 17ms",
           ],
           ['Prisma query OTHER - 17ms'],
+          [
+            'Prisma query WITH "new_row" AS (INSERT INTO "users" VALUES ($1)) SELECT * FROM "new_row" - 17ms',
+          ],
+          ['Prisma query SAVEPOINT somename - 17ms'],
         ]);
       }
       const event: Prisma.LogEvent = {
