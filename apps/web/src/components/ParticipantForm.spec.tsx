@@ -110,22 +110,46 @@ describe('ParticipantForm', () => {
     ).toBe('178');
   });
 
-  it('offers to edit an existing record on a duplicate-email conflict', async () => {
+  it('offers to edit the record whose email matches exactly, not the first substring hit', async () => {
     const h = handlers();
+    const peter = { ...view, id: 'p9', email: 'peter@x.com' };
+    // A substring hit (someone whose email merely contains the typed one) sorts
+    // first; the exact-email record is the one that must be offered.
+    const substringHit = { ...view, id: 'p1', email: 'peter@x.com.br' };
     mockApi.create.mockRejectedValue(
       new ApiError(409, 'EMAIL_ALREADY_EXISTS', 'dup'),
     );
     mockApi.list.mockResolvedValue({
-      data: [view],
-      pageInfo: { page: 1, pageSize: 1, total: 1, totalPages: 1 },
+      data: [substringHit, peter],
+      pageInfo: { page: 1, pageSize: 25, total: 2, totalPages: 1 },
+    });
+    render(<ParticipantForm editing={null} {...h} />);
+    fillValidUs(); // types peter@x.com
+    fireEvent.click(screen.getByRole('button', { name: /Save participant/ }));
+
+    const editBtn = await screen.findByText('Edit their record');
+    fireEvent.click(editBtn);
+    expect(h.onRequestEdit).toHaveBeenCalledWith(peter);
+  });
+
+  it('offers nothing when no returned row matches the email exactly', async () => {
+    const h = handlers();
+    mockApi.create.mockRejectedValue(
+      new ApiError(409, 'EMAIL_ALREADY_EXISTS', 'dup'),
+    );
+    // Only a substring hit comes back (e.g. search paged past the exact row).
+    mockApi.list.mockResolvedValue({
+      data: [{ ...view, email: 'peter@x.com.br' }],
+      pageInfo: { page: 1, pageSize: 25, total: 1, totalPages: 1 },
     });
     render(<ParticipantForm editing={null} {...h} />);
     fillValidUs();
     fireEvent.click(screen.getByRole('button', { name: /Save participant/ }));
 
-    const editBtn = await screen.findByText('Edit their record');
-    fireEvent.click(editBtn);
-    expect(h.onRequestEdit).toHaveBeenCalledWith(view);
+    expect(
+      await screen.findByText('A participant with this email already exists'),
+    ).toBeTruthy();
+    expect(screen.queryByText('Edit their record')).toBeNull();
   });
 
   it('prefills and updates in edit mode', async () => {

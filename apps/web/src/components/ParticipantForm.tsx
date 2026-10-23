@@ -78,13 +78,15 @@ export function ParticipantForm({
         ...prev,
         email: 'A participant with this email already exists',
       }));
-      // Offer to edit the existing record.
+      // Offer to edit the existing record. `search` is a substring match, so
+      // we must pick the row whose email matches exactly (the uniqueness the
+      // server rejected on) - never just the first substring hit, which could
+      // be a different person.
       try {
-        const page = await api.list({
-          search: values.email.trim(),
-          pageSize: 1,
-        });
-        setDuplicate(page.data[0] ?? null);
+        const query = values.email.trim();
+        const page = await api.list({ search: query });
+        const exact = page.data.find((p) => p.email === query);
+        setDuplicate(exact ?? null);
       } catch {
         /* non-fatal: the inline message is enough */
       }
