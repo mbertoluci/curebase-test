@@ -4,37 +4,26 @@ import {
   ParticipantView,
   Unit,
 } from '@org/contracts';
-import { AuditService } from '../../common/audit/audit.service';
 import { InputValidationError } from '../../common/errors/validation.error';
-import { PrismaService } from '../../database/prisma.service';
 import { ParticipantNotFoundError } from './participant.error';
 import { ParticipantRepository } from './participant.repository';
 import { ParticipantService } from './participant.service';
+import {
+  ParticipantTx,
+  ParticipantUnitOfWork,
+} from './participant.unit-of-work';
 
 /**
- * Unit tests for the domain layer. The repository, audit and transaction are
- * mocked, so these are fast and assert the *behaviour the service owns*: BMI
- * derivation, the per-unit business rule, recompute-on-update, and not-found.
+ * Unit tests for the domain layer. Reads go through a mocked repository and
+ * writes through a mocked unit of work whose `run` invokes the callback with a
+ * mocked transaction context - so these assert the *behaviour the service owns*:
+ * BMI derivation, the per-unit business rule, recompute-on-update, range
+ * validation and not-found. The service never sees Prisma.
  */
 describe('ParticipantService', () => {
   let service: ParticipantService;
-  let repository: jest.Mocked<
-    Pick<
-      ParticipantRepository,
-      | 'createTx'
-      | 'updateTx'
-      | 'findById'
-      | 'findByIdTx'
-      | 'softDeleteTx'
-      | 'list'
-    >
-  >;
-  let audit: jest.Mocked<Pick<AuditService, 'record'>>;
-
-  // A transaction that just runs its callback with a dummy tx client.
-  const prisma = {
-    $transaction: jest.fn((cb: (tx: unknown) => unknown) => cb({})),
-  } as unknown as PrismaService;
+  let repository: jest.Mocked<Pick<ParticipantRepository, 'findById' | 'list'>>;
+  let tx: jest.Mocked<ParticipantTx>;
 
   const view = (over: Partial<ParticipantView> = {}): ParticipantView => ({
     id: 'p1',
@@ -64,23 +53,25 @@ describe('ParticipantService', () => {
   };
 
   beforeEach(() => {
-    repository = {
-      createTx: jest.fn().mockResolvedValue(view()),
-      updateTx: jest
+    repository = { findById: jest.fn(), list: jest.fn() };
+    tx = {
+      findById: jest.fn(),
+      create: jest.fn().mockResolvedValue(view()),
+      update: jest
         .fn()
         .mockResolvedValue(
           view({ weight: 80, bmiValue: 26.12, bmiBand: BmiBand.OVERWEIGHT }),
         ),
-      findById: jest.fn(),
-      findByIdTx: jest.fn(),
-      softDeleteTx: jest.fn(),
-      list: jest.fn(),
+      softDelete: jest.fn().mockResolvedValue(undefined),
+      audit: jest.fn().mockResolvedValue(undefined),
     };
-    audit = { record: jest.fn().mockResolvedValue(undefined) };
+    // run invokes the work with the mocked transaction context.
+    const uow: Pick<ParticipantUnitOfWork, 'run'> = {
+      run: jest.fn((work) => work(tx)),
+    };
     service = new ParticipantService(
-      prisma,
       repository as unknown as ParticipantRepository,
-      audit as unknown as AuditService,
+      uow as unknown as ParticipantUnitOfWork,
     );
   });
 
@@ -91,16 +82,16 @@ describe('ParticipantService', () => {
         await expect(
           service.create({ ...validInput, ...patch }, 'tester'),
         ).rejects.toBeInstanceOf(InputValidationError);
-        expect(repository.createTx).not.toHaveBeenCalled();
+        expect(tx.create).not.toHaveBeenCalled();
       },
     );
+
     it('derives and stores BMI (metric) and writes a CREATE audit row', async () => {
       await service.create(validInput, 'tester');
 
-      const data = repository.createTx.mock.calls[0][1];
+      const data = tx.create.mock.calls[0][0];
       expect(data.bmiValue).toBeCloseTo(22.86, 2); // 70 / 1.75^2
-      expect(audit.record).toHaveBeenCalledWith(
-        expect.anything(),
+      expect(tx.audit).toHaveBeenCalledWith(
         expect.objectContaining({
           action: 'CREATE',
           entity: 'participant',
@@ -113,26 +104,26 @@ describe('ParticipantService', () => {
       await expect(
         service.create({ ...validInput, height: 10 }, 'tester'),
       ).rejects.toBeInstanceOf(InputValidationError);
-      expect(repository.createTx).not.toHaveBeenCalled();
+      expect(tx.create).not.toHaveBeenCalled();
     });
   });
 
   describe('update', () => {
     it('rejects excess precision in a partial update', async () => {
-      repository.findByIdTx.mockResolvedValue(view());
+      tx.findById.mockResolvedValue(view());
       await expect(
         service.update('p1', { weight: 72.249 }, 'editor'),
       ).rejects.toBeInstanceOf(InputValidationError);
-      expect(repository.updateTx).not.toHaveBeenCalled();
+      expect(tx.update).not.toHaveBeenCalled();
     });
+
     it('recomputes BMI when a measurement changes', async () => {
-      repository.findByIdTx.mockResolvedValue(view());
+      tx.findById.mockResolvedValue(view());
       await service.update('p1', { weight: 80 }, 'editor');
 
-      const patch = repository.updateTx.mock.calls[0][2];
+      const patch = tx.update.mock.calls[0][1];
       expect(patch.bmiValue).toBeCloseTo(26.12, 2); // 80 / 1.75^2
-      expect(audit.record).toHaveBeenCalledWith(
-        expect.anything(),
+      expect(tx.audit).toHaveBeenCalledWith(
         expect.objectContaining({
           action: 'UPDATE',
           before: expect.anything(),
@@ -142,15 +133,15 @@ describe('ParticipantService', () => {
     });
 
     it('does not recompute BMI when only contact fields change', async () => {
-      repository.findByIdTx.mockResolvedValue(view());
+      tx.findById.mockResolvedValue(view());
       await service.update('p1', { phone: '555' }, 'editor');
 
-      const patch = repository.updateTx.mock.calls[0][2];
+      const patch = tx.update.mock.calls[0][1];
       expect(patch.bmiValue).toBeUndefined();
     });
 
     it('passes through every provided contact field (and nulls an empty phone)', async () => {
-      repository.findByIdTx.mockResolvedValue(view());
+      tx.findById.mockResolvedValue(view());
       await service.update(
         'p1',
         {
@@ -161,7 +152,7 @@ describe('ParticipantService', () => {
         },
         'editor',
       );
-      const patch = repository.updateTx.mock.calls[0][2];
+      const patch = tx.update.mock.calls[0][1];
       expect(patch).toMatchObject({
         firstName: 'Grace',
         lastName: 'Hopper',
@@ -171,59 +162,59 @@ describe('ParticipantService', () => {
     });
 
     it('recomputes from the merged set when only age changes (weight/height from the existing record)', async () => {
-      repository.findByIdTx.mockResolvedValue(
+      tx.findById.mockResolvedValue(
         view({ weight: 70, height: 175, unit: Unit.METRIC }),
       );
       await service.update('p1', { age: 50 }, 'editor');
-      const patch = repository.updateTx.mock.calls[0][2];
+      const patch = tx.update.mock.calls[0][1];
       expect(patch.bmiValue).toBeCloseTo(22.86, 2);
       expect(patch.age).toBe(50);
     });
 
     it('rejects an update whose merged measurements are implausible', async () => {
-      repository.findByIdTx.mockResolvedValue(view());
+      tx.findById.mockResolvedValue(view());
       await expect(
         service.update('p1', { height: 5 }, 'editor'),
       ).rejects.toBeInstanceOf(InputValidationError);
-      expect(repository.updateTx).not.toHaveBeenCalled();
+      expect(tx.update).not.toHaveBeenCalled();
     });
 
     it('throws ParticipantNotFoundError when the row is missing', async () => {
-      repository.findByIdTx.mockResolvedValue(null);
+      tx.findById.mockResolvedValue(null);
       await expect(
         service.update('missing', { phone: '1' }, 'editor'),
       ).rejects.toBeInstanceOf(ParticipantNotFoundError);
     });
 
     it('requires weight+height when the unit changes (old values are in the old unit)', async () => {
-      repository.findByIdTx.mockResolvedValue(view({ unit: Unit.METRIC }));
+      tx.findById.mockResolvedValue(view({ unit: Unit.METRIC }));
       await expect(
         service.update('p1', { unit: Unit.US }, 'editor'),
       ).rejects.toBeInstanceOf(InputValidationError);
       await expect(
         service.update('p1', { unit: Unit.US, weight: 154 }, 'editor'),
       ).rejects.toBeInstanceOf(InputValidationError);
-      expect(repository.updateTx).not.toHaveBeenCalled();
+      expect(tx.update).not.toHaveBeenCalled();
     });
 
     it('accepts a unit change when weight and height are both supplied', async () => {
-      repository.findByIdTx.mockResolvedValue(view({ unit: Unit.METRIC }));
+      tx.findById.mockResolvedValue(view({ unit: Unit.METRIC }));
       await service.update(
         'p1',
         { unit: Unit.US, weight: 154, height: 69 },
         'editor',
       );
-      const patch = repository.updateTx.mock.calls[0][2];
+      const patch = tx.update.mock.calls[0][1];
       expect(patch.unit).toBe(Unit.US);
       expect(patch.bmiValue).toBeCloseTo(22.74, 1); // 703*154/69^2
     });
 
     it('merges provided height/unit with the existing weight/age', async () => {
-      repository.findByIdTx.mockResolvedValue(
+      tx.findById.mockResolvedValue(
         view({ weight: 60, height: 170, unit: Unit.METRIC, age: 25 }),
       );
       await service.update('p1', { height: 180, unit: Unit.METRIC }, 'editor');
-      const patch = repository.updateTx.mock.calls[0][2];
+      const patch = tx.update.mock.calls[0][1];
       expect(patch.weight).toBe(60); // from the existing record
       expect(patch.age).toBe(25); // from the existing record
       expect(patch.height).toBe(180);
@@ -275,22 +266,18 @@ describe('ParticipantService', () => {
 
   describe('remove', () => {
     it('throws when deleting a missing participant', async () => {
-      repository.findByIdTx.mockResolvedValue(null);
+      tx.findById.mockResolvedValue(null);
       await expect(service.remove('missing', 'editor')).rejects.toBeInstanceOf(
         ParticipantNotFoundError,
       );
-      expect(repository.softDeleteTx).not.toHaveBeenCalled();
+      expect(tx.softDelete).not.toHaveBeenCalled();
     });
 
     it('soft-deletes and writes a DELETE audit row with the before snapshot', async () => {
-      repository.findByIdTx.mockResolvedValue(view());
+      tx.findById.mockResolvedValue(view());
       await service.remove('p1', 'editor');
-      expect(repository.softDeleteTx).toHaveBeenCalledWith(
-        expect.anything(),
-        'p1',
-      );
-      expect(audit.record).toHaveBeenCalledWith(
-        expect.anything(),
+      expect(tx.softDelete).toHaveBeenCalledWith('p1');
+      expect(tx.audit).toHaveBeenCalledWith(
         expect.objectContaining({
           action: 'DELETE',
           before: expect.anything(),

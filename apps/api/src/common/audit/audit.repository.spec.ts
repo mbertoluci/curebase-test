@@ -1,10 +1,14 @@
 import { Prisma } from '@prisma/client';
-import { AuditAction, AuditEntity, AuditService } from './audit.service';
+import {
+  AuditAction,
+  AuditEntity,
+  AuditRepository,
+} from './audit.repository';
 
-describe('AuditService', () => {
+describe('AuditRepository', () => {
   const create = jest.fn();
   const tx = { auditLog: { create } } as unknown as Prisma.TransactionClient;
-  const service = new AuditService();
+  const service = new AuditRepository();
 
   beforeEach(() => create.mockReset());
 

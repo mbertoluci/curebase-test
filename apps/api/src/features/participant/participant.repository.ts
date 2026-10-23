@@ -4,6 +4,7 @@ import { classifyMeasurements, ParticipantView } from '@org/contracts';
 import { PrismaService } from '../../database/prisma.service';
 import {
   EmailAlreadyExistsError,
+  ParticipantIntegrityError,
   ParticipantNotFoundError,
 } from './participant.error';
 import {
@@ -189,9 +190,7 @@ export class ParticipantRepository {
     // violation, not an empty-string participant - fail loudly (500) rather than
     // fabricate blank PII.
     if (!profile || profile.deletedAt !== null) {
-      throw new Error(
-        `participant ${row.id} has no active profile (integrity)`,
-      );
+      throw new ParticipantIntegrityError(row.id);
     }
     const weight = row.weight.toNumber();
     const height = row.height.toNumber();
