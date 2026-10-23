@@ -30,14 +30,21 @@ export type Toast = { kind: 'success' | 'error'; message: string };
  * The view (ParticipantPage) stays declarative and just renders what this hook
  * exposes.
  */
-export function useParticipantList() {
+export function useParticipantList(
+  initialData?: Paginated<ParticipantView> | null,
+) {
   const [query, setQuery] = useState<ListParticipantQuery>(DEFAULT_QUERY);
-  const [page, setPage] = useState<Paginated<ParticipantView> | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState<Paginated<ParticipantView> | null>(
+    initialData ?? null,
+  );
+  const [loading, setLoading] = useState(!initialData);
   const [error, setError] = useState<string | null>(null);
   const [editing, setEditing] = useState<ParticipantView | null>(null);
   const [toast, setToast] = useState<Toast | null>(null);
   const [refresh, setRefresh] = useState(0);
+  // When the server seeded the first page, skip the initial client fetch (the
+  // debounce effect still fires on mount); later query/refresh changes load.
+  const seeded = useRef(Boolean(initialData));
 
   // Monotonic request id: only the most recently issued load may touch state,
   // so a slow earlier response can't overwrite a newer one (stale-while-typing).
@@ -77,6 +84,11 @@ export function useParticipantList() {
 
   // Debounced reload whenever the query (or a manual refresh) changes.
   useEffect(() => {
+    if (seeded.current) {
+      // First mount with server-provided data: it's already in state.
+      seeded.current = false;
+      return;
+    }
     const handle = setTimeout(() => load(query), LIST_DEBOUNCE_MS);
     return () => {
       clearTimeout(handle);

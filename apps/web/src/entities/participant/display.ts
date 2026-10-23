@@ -35,5 +35,11 @@ export function heightLabel(unit: Unit, height: number): string {
 }
 
 export function formatDate(iso: string): string {
-  return new Date(iso).toLocaleString();
+  // Fixed locale + UTC so the server and client produce identical markup (no
+  // hydration mismatch) and the audit time is unambiguous across time zones.
+  return new Date(iso).toLocaleString('en-US', {
+    timeZone: 'UTC',
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  });
 }

@@ -19,6 +19,7 @@ const config = {
     '!src/**/*.spec.{ts,tsx}',
     '!src/app/layout.tsx', // trivial root layout
     '!src/app/error.tsx', // framework error boundary
+    '!src/app/page.tsx', // server component: SSR fetch glue (api covered in entities)
   ],
   coverageThreshold: {
     global: { statements: 93, branches: 85, functions: 88, lines: 94 },
