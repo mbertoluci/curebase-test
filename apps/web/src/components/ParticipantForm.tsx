@@ -1,7 +1,7 @@
 'use client';
 
 import { ParticipantView, Unit } from '@org/contracts';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { api, ApiError } from '../lib/api';
 import { formatBmi, weightUnit } from '../lib/display';
 import {
@@ -33,6 +33,12 @@ export function ParticipantForm({
   const [serverError, setServerError] = useState<string | null>(null);
   const [duplicate, setDuplicate] = useState<ParticipantView | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  // Latest email shown in the form, readable from an async handler after the
+  // render-time closure has gone stale (the duplicate lookup below).
+  const emailRef = useRef(values.email);
+  useEffect(() => {
+    emailRef.current = values.email;
+  }, [values.email]);
 
   // Keep the form in sync with the record being edited (or reset on cancel).
   useEffect(() => {
@@ -85,6 +91,10 @@ export function ParticipantForm({
       try {
         const query = values.email.trim();
         const page = await api.list({ search: query });
+        // The user may have corrected the email while this lookup was in
+        // flight (e.g. typed a new one and kept going); offering the old
+        // email's record then would point at the wrong person.
+        if (emailRef.current.trim() !== query) return;
         const exact = page.data.find((p) => p.email === query);
         setDuplicate(exact ?? null);
       } catch {
