@@ -460,5 +460,29 @@ describe('ParticipantRepository (integration)', () => {
       expect(page2.data).toHaveLength(1);
       expect(page2.total).toBe(3);
     });
+
+    it('paginates completely when the sort key ties (id tie-break: no skip/repeat)', async () => {
+      // Three more rows share one age, so only the id tie-break gives them a
+      // stable order. Walk every row one page at a time: each must appear exactly
+      // once - without the tie-break a tied row can repeat or vanish across pages.
+      for (const name of ['Delta', 'Echo', 'Foxtrot']) {
+        await create({
+          lastName: name,
+          email: `${name.toLowerCase()}@x.com`,
+          unit: Unit.METRIC,
+          weight: 70,
+          height: 175,
+          age: 50,
+        });
+      }
+      const sort = { field: 'age' as const, direction: 'asc' as const };
+      const seen: string[] = [];
+      for (let page = 1; page <= 6; page++) {
+        const { data } = await repo.list({}, sort, { page, pageSize: 1 });
+        for (const row of data) seen.push(row.id);
+      }
+      expect(seen).toHaveLength(6); // all six rows, none skipped
+      expect(new Set(seen).size).toBe(6); // each exactly once, none repeated
+    });
   });
 });

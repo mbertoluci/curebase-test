@@ -82,19 +82,23 @@ export class ParticipantRepository {
   ): Promise<{ data: ParticipantView[]; total: number }> {
     const where = this.buildWhere(filter);
     const orderBy = this.buildOrderBy(sort);
-    // Local read-only transaction, owned here because it has no mutation/audit.
-    // Isolation follows the database default: under PostgreSQL READ COMMITTED,
-    // rows and count can see different snapshots during concurrent writes.
-    const [rows, total] = await this.prisma.$transaction([
-      this.participants.findMany({
-        where,
-        orderBy,
-        include: participantInclude,
-        skip: (page.page - 1) * page.pageSize,
-        take: page.pageSize,
-      }),
-      this.participants.count({ where }),
-    ]);
+    // Read-only transaction owned here (no mutation/audit). REPEATABLE READ gives
+    // findMany and count one consistent snapshot, so the returned total always
+    // matches the page's rows even if data is inserted/deleted concurrently (a
+    // read-only snapshot never hits a serialization failure).
+    const [rows, total] = await this.prisma.$transaction(
+      [
+        this.participants.findMany({
+          where,
+          orderBy,
+          include: participantInclude,
+          skip: (page.page - 1) * page.pageSize,
+          take: page.pageSize,
+        }),
+        this.participants.count({ where }),
+      ],
+      { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead },
+    );
     return { data: rows.map((row) => this.toView(row)), total };
   }
 
