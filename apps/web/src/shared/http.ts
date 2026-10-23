@@ -1,11 +1,4 @@
-import type {
-  ApiErrorBody,
-  CreateParticipantInput,
-  ListParticipantQuery,
-  Paginated,
-  ParticipantView,
-  UpdateParticipantInput,
-} from '@org/contracts';
+import type { ApiErrorBody } from '@org/contracts';
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3333/api';
 
@@ -22,7 +15,12 @@ export class ApiError extends Error {
   }
 }
 
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
+/**
+ * The single fetch wrapper: prefixes the base URL, parses JSON, and turns every
+ * failure (network, non-2xx, unreadable body) into a typed {@link ApiError}.
+ * Feature API modules build their endpoints on top of this.
+ */
+export async function request<T>(path: string, init?: RequestInit): Promise<T> {
   let res: Response;
   try {
     res = await fetch(`${BASE_URL}${path}`, {
@@ -60,34 +58,3 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   }
   return body as T;
 }
-
-function toQueryString(query: ListParticipantQuery): string {
-  const params = new URLSearchParams();
-  for (const [key, value] of Object.entries(query)) {
-    if (value !== undefined && value !== null && value !== '') {
-      params.set(key, String(value));
-    }
-  }
-  const qs = params.toString();
-  return qs ? `?${qs}` : '';
-}
-
-export const api = {
-  list: (
-    query: ListParticipantQuery = {},
-  ): Promise<Paginated<ParticipantView>> =>
-    request(`/participants${toQueryString(query)}`),
-  get: (id: string): Promise<ParticipantView> => request(`/participants/${id}`),
-  create: (input: CreateParticipantInput): Promise<ParticipantView> =>
-    request('/participants', { method: 'POST', body: JSON.stringify(input) }),
-  update: (
-    id: string,
-    patch: UpdateParticipantInput,
-  ): Promise<ParticipantView> =>
-    request(`/participants/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(patch),
-    }),
-  remove: (id: string): Promise<void> =>
-    request(`/participants/${id}`, { method: 'DELETE' }),
-};

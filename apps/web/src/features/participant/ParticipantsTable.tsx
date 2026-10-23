@@ -12,7 +12,7 @@ import {
   heightLabel,
   unitLabel,
   weightUnit,
-} from '../lib/display';
+} from './participant.display';
 import { BandChip } from './BandChip';
 
 interface Props {

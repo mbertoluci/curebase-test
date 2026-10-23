@@ -14,8 +14,9 @@ import {
   useState,
 } from 'react';
 import type { ReactElement, ReactNode } from 'react';
-import { api, ApiError } from '../lib/api';
-import { formatBmi, weightUnit } from '../lib/display';
+import { api } from './participant.api';
+import { ApiError } from '../../shared/http';
+import { formatBmi, weightUnit } from './participant.display';
 import {
   convertToUnit,
   emptyForm,
@@ -24,7 +25,7 @@ import {
   FormValues,
   livePreview,
   validate,
-} from '../lib/form-model';
+} from './participant.model';
 import { BandChip } from './BandChip';
 
 interface Props {
