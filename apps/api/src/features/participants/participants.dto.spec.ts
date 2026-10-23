@@ -61,6 +61,17 @@ describe('UpdateParticipantDto', () => {
     expect(dto.weight).toBe(90);
   });
 
+  it('normalizes the email in a partial patch too (PartialType keeps the transform)', async () => {
+    // A10/A19 end-to-end: the update path must store the same normalized
+    // form the create path and the unique index agree on. If PartialType
+    // ever drops the @Transform, an update could persist ' A@X.com ' raw.
+    const dto = plainToInstance(UpdateParticipantDto, {
+      email: '  ADA@Example.COM ',
+    });
+    expect(await validate(dto)).toHaveLength(0);
+    expect(dto.email).toBe('ada@example.com');
+  });
+
   it('rejects an explicit null on a required field (never reaches Prisma)', async () => {
     const dto = plainToInstance(UpdateParticipantDto, { firstName: null });
     const props = (await validate(dto)).map((e) => e.property);
