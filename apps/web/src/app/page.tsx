@@ -4,7 +4,7 @@ import {
   DEFAULT_PAGE_SIZE,
   DEFAULT_SORT_FIELD,
   DEFAULT_SORT_DIR,
-  ListParticipantsQuery,
+  ListParticipantQuery,
   Paginated,
   ParticipantSortField,
   ParticipantView,
@@ -16,7 +16,7 @@ import { Filters } from '../components/Filters';
 import { ParticipantForm } from '../components/ParticipantForm';
 import { ParticipantsTable } from '../components/ParticipantsTable';
 
-const DEFAULT_QUERY: ListParticipantsQuery = {
+const DEFAULT_QUERY: ListParticipantQuery = {
   page: 1,
   pageSize: DEFAULT_PAGE_SIZE,
   sortBy: DEFAULT_SORT_FIELD,
@@ -26,7 +26,7 @@ const DEFAULT_QUERY: ListParticipantsQuery = {
 type Toast = { kind: 'success' | 'error'; message: string };
 
 export default function HomePage() {
-  const [query, setQuery] = useState<ListParticipantsQuery>(DEFAULT_QUERY);
+  const [query, setQuery] = useState<ListParticipantQuery>(DEFAULT_QUERY);
   const [page, setPage] = useState<Paginated<ParticipantView> | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -37,7 +37,7 @@ export default function HomePage() {
   // Monotonic request id: only the most recently issued load may touch state,
   // so a slow earlier response can't overwrite a newer one (stale-while-typing).
   const loadSeq = useRef(0);
-  const load = useCallback(async (q: ListParticipantsQuery) => {
+  const load = useCallback(async (q: ListParticipantQuery) => {
     const seq = ++loadSeq.current;
     setLoading(true);
     setError(null);
@@ -68,7 +68,7 @@ export default function HomePage() {
     return () => clearTimeout(handle);
   }, [toast]);
 
-  const patchQuery = (patch: Partial<ListParticipantsQuery>) =>
+  const patchQuery = (patch: Partial<ListParticipantQuery>) =>
     setQuery((prev) => ({
       ...prev,
       ...patch,

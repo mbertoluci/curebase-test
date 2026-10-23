@@ -1,10 +1,10 @@
 'use client';
 
-import { ListParticipantsQuery, Unit } from '@org/contracts';
+import { ListParticipantQuery, Unit } from '@org/contracts';
 
 interface Props {
-  query: ListParticipantsQuery;
-  onChange: (patch: Partial<ListParticipantsQuery>) => void;
+  query: ListParticipantQuery;
+  onChange: (patch: Partial<ListParticipantQuery>) => void;
   onReset: () => void;
 }
 

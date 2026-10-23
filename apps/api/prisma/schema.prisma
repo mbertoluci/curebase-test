@@ -41,7 +41,7 @@ model AuditLog {
 
   @@index([entity, entityId])
   @@index([createdAt])
-  @@map("audit_log")
+  @@map("audit_logs")
 }
 
 /// Root identity row. Owns one profile (PII) and one participant (measurements).

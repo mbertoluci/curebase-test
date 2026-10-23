@@ -84,7 +84,7 @@ export function normalizeEmail(email: string): string {
 }
 
 /** Allow-listed query contract for GET /participants (filter + sort + paginate). */
-export interface ListParticipantsQuery {
+export interface ListParticipantQuery {
   page?: number;
   pageSize?: number;
   /** Free-text match on first/last name or email. */

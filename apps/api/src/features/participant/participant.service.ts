@@ -5,7 +5,7 @@ import {
   DEFAULT_PAGE_SIZE,
   DEFAULT_SORT_DIR,
   DEFAULT_SORT_FIELD,
-  ListParticipantsQuery,
+  ListParticipantQuery,
   measurementErrors,
   MAX_PAGE_SIZE,
   Paginated,
@@ -13,7 +13,11 @@ import {
   roundBmi,
   UpdateParticipantInput,
 } from '@org/contracts';
-import { AuditService } from '../../common/audit/audit.service';
+import {
+  AuditAction,
+  AuditEntity,
+  AuditService,
+} from '../../common/audit/audit.service';
 import { InputValidationError } from '../../common/errors/validation.error';
 import { PrismaService } from '../../database/prisma.service';
 import { ParticipantNotFoundError } from './participant.error';
@@ -66,8 +70,8 @@ export class ParticipantService {
       const created = await this.repository.createTx(tx, data);
       await this.audit.record(tx, {
         actor,
-        action: 'CREATE',
-        entity: 'participant',
+        action: AuditAction.CREATE,
+        entity: AuditEntity.PARTICIPANT,
         entityId: created.id,
         after: created,
       });
@@ -117,8 +121,8 @@ export class ParticipantService {
       const after = await this.repository.updateTx(tx, id, data);
       await this.audit.record(tx, {
         actor,
-        action: 'UPDATE',
-        entity: 'participant',
+        action: AuditAction.UPDATE,
+        entity: AuditEntity.PARTICIPANT,
         entityId: id,
         before,
         after,
@@ -134,7 +138,7 @@ export class ParticipantService {
   }
 
   async list(
-    query: ListParticipantsQuery,
+    query: ListParticipantQuery,
   ): Promise<Paginated<ParticipantView>> {
     const page = query.page && query.page > 0 ? query.page : 1;
     const pageSize = Math.min(
@@ -179,8 +183,8 @@ export class ParticipantService {
       await this.repository.softDeleteTx(tx, id);
       await this.audit.record(tx, {
         actor,
-        action: 'DELETE',
-        entity: 'participant',
+        action: AuditAction.DELETE,
+        entity: AuditEntity.PARTICIPANT,
         entityId: id,
         before,
       });
@@ -190,7 +194,7 @@ export class ParticipantService {
   // --- helpers -----------------------------------------------------------
 
   /** Reject inverted filter ranges (min greater than max) with a 400, not silence. */
-  private assertRangeOrder(query: ListParticipantsQuery): void {
+  private assertRangeOrder(query: ListParticipantQuery): void {
     const errors: string[] = [];
     if (
       query.minBmi !== undefined &&

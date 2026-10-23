@@ -1,7 +1,7 @@
 import type {
   ApiErrorBody,
   CreateParticipantInput,
-  ListParticipantsQuery,
+  ListParticipantQuery,
   Paginated,
   ParticipantView,
   UpdateParticipantInput,
@@ -61,7 +61,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return body as T;
 }
 
-function toQueryString(query: ListParticipantsQuery): string {
+function toQueryString(query: ListParticipantQuery): string {
   const params = new URLSearchParams();
   for (const [key, value] of Object.entries(query)) {
     if (value !== undefined && value !== null && value !== '') {
@@ -74,7 +74,7 @@ function toQueryString(query: ListParticipantsQuery): string {
 
 export const api = {
   list: (
-    query: ListParticipantsQuery = {},
+    query: ListParticipantQuery = {},
   ): Promise<Paginated<ParticipantView>> =>
     request(`/participants${toQueryString(query)}`),
   get: (id: string): Promise<ParticipantView> => request(`/participants/${id}`),
