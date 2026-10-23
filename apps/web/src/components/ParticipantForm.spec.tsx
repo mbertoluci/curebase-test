@@ -1,5 +1,5 @@
 import { BmiBand, ParticipantView, Unit } from '@org/contracts';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, act } from '@testing-library/react';
 import { api, ApiError } from '../lib/api';
 import { ParticipantForm } from './ParticipantForm';
 
@@ -182,6 +182,71 @@ describe('ParticipantForm', () => {
     expect(mockApi.list).toHaveBeenCalledWith({ search: 'peter@x.com' });
     expect(screen.queryByText('Edit their record')).toBeNull();
     expect(h.onRequestEdit).not.toHaveBeenCalled();
+  });
+
+  it('withdraws the offer if the email was corrected while the lookup was in flight', async () => {
+    const h = handlers();
+    mockApi.create.mockRejectedValue(
+      new ApiError(409, 'EMAIL_ALREADY_EXISTS', 'dup'),
+    );
+    let resolveList!: (page: unknown) => void;
+    mockApi.list.mockReturnValue(
+      new Promise((resolve) => {
+        resolveList = resolve;
+      }) as never,
+    );
+    render(<ParticipantForm editing={null} {...h} />);
+    fillValidUs(); // submits peter@x.com -> 409 -> lookup pending
+    fireEvent.click(screen.getByRole('button', { name: /Save participant/ }));
+    await waitFor(() => expect(mockApi.list).toHaveBeenCalled());
+
+    // The user fixes the email BEFORE the lookup answers...
+    fireEvent.change(screen.getByLabelText('Email'), {
+      target: { value: 'peter.pan@x.com' },
+    });
+    // ...and the stale lookup resolves with an exact match for the OLD email.
+    act(() => {
+      resolveList({
+        data: [{ ...view, id: 'p9', email: 'peter@x.com' }],
+        pageInfo: { page: 1, pageSize: 25, total: 1, totalPages: 1 },
+      });
+    });
+    await waitFor(() =>
+      expect(
+        (
+          screen.getByRole('button', {
+            name: /Save participant/,
+          }) as HTMLButtonElement
+        ).disabled,
+      ).toBe(false),
+    );
+    expect(screen.queryByText('Edit their record')).toBeNull();
+    expect(h.onRequestEdit).not.toHaveBeenCalled();
+  });
+
+  it('keeps only the inline message when the duplicate lookup itself fails', async () => {
+    const h = handlers();
+    mockApi.create.mockRejectedValue(
+      new ApiError(409, 'EMAIL_ALREADY_EXISTS', 'dup'),
+    );
+    mockApi.list.mockRejectedValue(new ApiError(0, 'NETWORK_ERROR', 'down'));
+    render(<ParticipantForm editing={null} {...h} />);
+    fillValidUs();
+    fireEvent.click(screen.getByRole('button', { name: /Save participant/ }));
+
+    expect(
+      await screen.findByText('A participant with this email already exists'),
+    ).toBeTruthy();
+    await waitFor(() =>
+      expect(
+        (
+          screen.getByRole('button', {
+            name: /Save participant/,
+          }) as HTMLButtonElement
+        ).disabled,
+      ).toBe(false),
+    );
+    expect(screen.queryByText('Edit their record')).toBeNull();
   });
 
   it('prefills and updates in edit mode', async () => {
