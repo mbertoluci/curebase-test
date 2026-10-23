@@ -1,57 +1,56 @@
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
 import helmet from 'helmet';
 import { Logger } from 'nestjs-pino';
 import { useContainer } from 'class-validator';
 import { AppModule } from './app/app.module';
+import { APP_CONFIG, AppConfig } from './config/configuration';
 
 async function bootstrap(): Promise<void> {
   // bufferLogs so early logs go through pino once it is wired up.
   const app = await NestFactory.create(AppModule, { bufferLogs: true });
   app.useLogger(app.get(Logger));
 
-  // Security headers (nosniff, SAMEORIGIN framing, HSTS, ...). CSP is left off: this is
-  // a JSON API and the only HTML it serves is the dev Swagger UI, which needs a
-  // relaxed CSP; a browser-facing app would ship a real content-security-policy.
+  // Single typed source of configuration (no ad hoc process.env here).
+  const config = app.get(ConfigService).getOrThrow<AppConfig>(APP_CONFIG);
+
+  // Security headers (nosniff, SAMEORIGIN framing, HSTS, ...). CSP is left off:
+  // this is a JSON API and the only HTML it serves is the dev Swagger UI, which
+  // needs a relaxed CSP; a browser-facing app would ship a real policy.
   app.use(helmet({ contentSecurityPolicy: false }));
 
-  const globalPrefix = process.env.API_GLOBAL_PREFIX ?? 'api';
-  app.setGlobalPrefix(globalPrefix);
+  app.setGlobalPrefix(config.globalPrefix);
 
-  // Let class-validator resolve DI-backed constraints (e.g. @Exists) from Nest.
+  // Let class-validator resolve DI-backed constraints from Nest.
   useContainer(app.select(AppModule), { fallbackOnErrors: true });
 
-  // CORS for the web app(s).
-  const origins = (process.env.WEB_ORIGIN ?? 'http://localhost:3000')
-    .split(',')
-    .map((origin) => origin.trim())
-    .filter(Boolean);
-  app.enableCors({ origin: origins });
+  app.enableCors({ origin: config.corsOrigins });
 
   // Flush Prisma (and other) shutdown hooks on SIGINT/SIGTERM.
   app.enableShutdownHooks();
 
-  // OpenAPI docs at /{prefix}/docs - exposed outside production only, so a
+  // OpenAPI docs at /{prefix}/{path} - exposed outside production only, so a
   // deployed instance does not publish its full API surface.
-  if (process.env.NODE_ENV !== 'production') {
-    const config = new DocumentBuilder()
-      .setTitle('Curebase BMI API')
-      .setDescription(
-        'Participant demographic + health capture with derived BMI',
-      )
-      .setVersion('1.0')
+  if (!config.isProduction) {
+    const doc = new DocumentBuilder()
+      .setTitle(config.swagger.title)
+      .setDescription(config.swagger.description)
+      .setVersion(config.swagger.version)
       .build();
     SwaggerModule.setup(
-      `${globalPrefix}/docs`,
+      `${config.globalPrefix}/${config.swagger.path}`,
       app,
-      SwaggerModule.createDocument(app, config),
+      SwaggerModule.createDocument(app, doc),
     );
   }
 
-  // API_PORT (not PORT) so it never collides with Next's own PORT in the monorepo.
-  const port = Number(process.env.API_PORT ?? process.env.PORT ?? 3333);
-  await app.listen(port);
-  app.get(Logger).log(`API ready on http://localhost:${port}/${globalPrefix}`);
+  await app.listen(config.port);
+  app
+    .get(Logger)
+    .log(
+      `API ready on http://localhost:${config.port}/${config.globalPrefix}`,
+    );
 }
 
 void bootstrap();

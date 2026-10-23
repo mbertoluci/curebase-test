@@ -11,6 +11,7 @@ import {
 } from '@org/contracts';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { api, ApiError } from '../lib/api';
+import { LIST_DEBOUNCE_MS, TOAST_DISMISS_MS } from '../lib/constants';
 import { Filters } from '../components/Filters';
 import { ParticipantForm } from '../components/ParticipantForm';
 import { ParticipantsTable } from '../components/ParticipantsTable';
@@ -56,14 +57,14 @@ export default function HomePage() {
 
   // Debounced reload whenever the query (or a manual refresh) changes.
   useEffect(() => {
-    const handle = setTimeout(() => load(query), 250);
+    const handle = setTimeout(() => load(query), LIST_DEBOUNCE_MS);
     return () => clearTimeout(handle);
   }, [query, refresh, load]);
 
   // Auto-dismiss the toast.
   useEffect(() => {
     if (!toast) return;
-    const handle = setTimeout(() => setToast(null), 3500);
+    const handle = setTimeout(() => setToast(null), TOAST_DISMISS_MS);
     return () => clearTimeout(handle);
   }, [toast]);
 
