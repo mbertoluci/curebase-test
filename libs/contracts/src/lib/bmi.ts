@@ -54,6 +54,9 @@ export function roundBmi(bmi: number, decimals = 1): number {
  * curves are intentionally out of scope). Classification uses the raw value.
  */
 export function classifyBmi(bmi: number, age: number): BmiBand | null {
+  // A non-finite BMI (NaN/Infinity) can't be classified - return N/A rather than
+  // falling through every `<` check and silently reporting OBESE.
+  if (!Number.isFinite(bmi)) return null;
   if (age < ADULT_AGE_THRESHOLD) return null;
   for (const { band, below } of BAND_THRESHOLDS) {
     if (bmi < below) return band;

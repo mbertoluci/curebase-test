@@ -5,7 +5,7 @@ import {
   computeBmi,
   roundBmi,
 } from './bmi';
-import { convertMeasurements, Unit } from './units';
+import { convertMeasurements, MEASUREMENT_BOUNDS, Unit } from './units';
 
 describe('computeBmi', () => {
   it('matches the US examples from the brief', () => {
@@ -29,6 +29,18 @@ describe('computeBmi', () => {
   it('throws on non-positive height instead of returning Infinity', () => {
     expect(() => computeBmi(70, 0, Unit.METRIC)).toThrow(RangeError);
   });
+
+  it('keeps the BMI of the widest plausible pair within bmi_value Decimal(6,2)', () => {
+    // bmi_value is Decimal(6,2) (max 9999.99). The heaviest + shortest valid
+    // measurements must still fit, or an INSERT would overflow. This locks the
+    // bounds <-> column invariant: widening the bounds too far fails here.
+    for (const unit of [Unit.US, Unit.METRIC]) {
+      const { weight, height } = MEASUREMENT_BOUNDS[unit];
+      const maxBmi = roundBmi(computeBmi(weight.max, height.min, unit), 2);
+      expect(maxBmi).toBeGreaterThan(0);
+      expect(maxBmi).toBeLessThan(10000);
+    }
+  });
 });
 
 describe('classifyBmi', () => {
@@ -44,6 +56,12 @@ describe('classifyBmi', () => {
   it('returns null below the adult age threshold (no pediatric bands)', () => {
     expect(classifyBmi(22, 17)).toBeNull();
     expect(classifyBmi(22, 18)).toBe(BmiBand.NORMAL);
+  });
+
+  it('returns null for a non-finite BMI instead of silently reporting OBESE', () => {
+    // NaN/Infinity fail every `< below` check and would fall through to OBESE.
+    expect(classifyBmi(NaN, 30)).toBeNull();
+    expect(classifyBmi(Infinity, 30)).toBeNull();
   });
 });
 
