@@ -67,6 +67,12 @@
   ],
   "analytics": false,
   "targetDefaults": {
+    "build": {
+      "dependsOn": ["^build"]
+    },
+    "typecheck": {
+      "dependsOn": ["^build"]
+    },
     "test": {
       "dependsOn": ["^build"]
     }

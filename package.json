@@ -4,6 +4,7 @@
   "license": "MIT",
   "scripts": {
     "prepare": "husky",
+    "postinstall": "prisma generate --schema apps/api/prisma/schema.prisma",
     "dev": "nx run-many -t serve dev -p @org/api @org/web",
     "dev:api": "nx serve @org/api",
     "dev:web": "nx dev @org/web",
