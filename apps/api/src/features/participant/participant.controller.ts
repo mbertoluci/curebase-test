@@ -24,16 +24,16 @@ import { ApiValidationErrorResponse } from '../../common/errors/api-validation-r
 import { Throws } from '../../common/errors/throws.decorator';
 import {
   CreateParticipantDto,
-  ListParticipantsQueryDto,
-  PaginatedParticipantsDto,
+  ListParticipantQueryDto,
+  PaginatedParticipantDto,
   ParticipantDto,
   UpdateParticipantDto,
-} from './participants.dto';
+} from './participant.dto';
 import {
   EmailAlreadyExistsError,
   ParticipantNotFoundError,
-} from './participants.error';
-import { ParticipantsService } from './participants.service';
+} from './participant.error';
+import { ParticipantService } from './participant.service';
 
 /**
  * HTTP boundary. It only (de)serializes DTOs, derives the actor, and delegates
@@ -42,8 +42,8 @@ import { ParticipantsService } from './participants.service';
  */
 @ApiTags(API_TAGS.participants)
 @Controller(API_ROUTES.participants)
-export class ParticipantsController {
-  constructor(private readonly service: ParticipantsService) {}
+export class ParticipantController {
+  constructor(private readonly service: ParticipantService) {}
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
@@ -58,10 +58,10 @@ export class ParticipantsController {
   }
 
   @Get()
-  @ApiOkResponse({ type: PaginatedParticipantsDto })
+  @ApiOkResponse({ type: PaginatedParticipantDto })
   @ApiValidationErrorResponse()
   list(
-    @Query() query: ListParticipantsQueryDto,
+    @Query() query: ListParticipantQueryDto,
   ): Promise<Paginated<ParticipantView>> {
     return this.service.list(query);
   }

@@ -7,20 +7,20 @@ import {
 import { AuditService } from '../../common/audit/audit.service';
 import { InputValidationError } from '../../common/errors/validation.error';
 import { PrismaService } from '../../database/prisma.service';
-import { ParticipantNotFoundError } from './participants.error';
-import { ParticipantsRepository } from './participants.repository';
-import { ParticipantsService } from './participants.service';
+import { ParticipantNotFoundError } from './participant.error';
+import { ParticipantRepository } from './participant.repository';
+import { ParticipantService } from './participant.service';
 
 /**
  * Unit tests for the domain layer. The repository, audit and transaction are
  * mocked, so these are fast and assert the *behaviour the service owns*: BMI
  * derivation, the per-unit business rule, recompute-on-update, and not-found.
  */
-describe('ParticipantsService', () => {
-  let service: ParticipantsService;
+describe('ParticipantService', () => {
+  let service: ParticipantService;
   let repository: jest.Mocked<
     Pick<
-      ParticipantsRepository,
+      ParticipantRepository,
       | 'createTx'
       | 'updateTx'
       | 'findById'
@@ -77,9 +77,9 @@ describe('ParticipantsService', () => {
       list: jest.fn(),
     };
     audit = { record: jest.fn().mockResolvedValue(undefined) };
-    service = new ParticipantsService(
+    service = new ParticipantService(
       prisma,
-      repository as unknown as ParticipantsRepository,
+      repository as unknown as ParticipantRepository,
       audit as unknown as AuditService,
     );
   });

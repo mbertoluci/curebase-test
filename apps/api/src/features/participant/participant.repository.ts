@@ -5,14 +5,14 @@ import { PrismaService } from '../../database/prisma.service';
 import {
   EmailAlreadyExistsError,
   ParticipantNotFoundError,
-} from './participants.error';
+} from './participant.error';
 import {
   CreateParticipantData,
   ParticipantFilter,
   ParticipantSort,
   Pagination,
   UpdateParticipantData,
-} from './participants.type';
+} from './participant.type';
 
 /** The join every read needs: a participant with its user's profile. */
 const participantInclude = { user: { include: { profile: true } } } as const;
@@ -33,7 +33,7 @@ const ACTIVE = { deletedAt: null } as const;
  * the audit write atomically.
  */
 @Injectable()
-export class ParticipantsRepository {
+export class ParticipantRepository {
   constructor(private readonly prisma: PrismaService) {}
 
   // Named accessor, mirroring the "this.<table>" style from the brief.

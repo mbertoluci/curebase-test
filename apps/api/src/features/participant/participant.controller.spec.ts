@@ -1,12 +1,12 @@
 import { VALIDATION_ERROR_DESCRIPTION } from '../../common/api.constants';
 import {
-  PaginatedParticipantsDto,
+  PaginatedParticipantDto,
   ParticipantDto,
-} from './participants.dto';
-import { ParticipantsController } from './participants.controller';
-import { ParticipantsService } from './participants.service';
+} from './participant.dto';
+import { ParticipantController } from './participant.controller';
+import { ParticipantService } from './participant.service';
 
-describe('ParticipantsController', () => {
+describe('ParticipantController', () => {
   const service = {
     create: jest.fn().mockResolvedValue({ id: 'p1' }),
     list: jest.fn().mockResolvedValue({ data: [], pageInfo: {} }),
@@ -14,8 +14,8 @@ describe('ParticipantsController', () => {
     update: jest.fn().mockResolvedValue({ id: 'p1' }),
     remove: jest.fn().mockResolvedValue(undefined),
   };
-  const controller = new ParticipantsController(
-    service as unknown as ParticipantsService,
+  const controller = new ParticipantController(
+    service as unknown as ParticipantService,
   );
   const body = { firstName: 'A' } as never;
 
@@ -39,22 +39,22 @@ describe('ParticipantsController', () => {
 
   it('documents the list response as the { data, pageInfo } envelope, not a bare array', () => {
     // A13 pinned at the source: if this regresses to isArray: true (or drops
-    // PaginatedParticipantsDto), generated clients go back to expecting a bare
+    // PaginatedParticipantDto), generated clients go back to expecting a bare
     // array while the service returns the envelope.
     const responses = Reflect.getMetadata(
       'swagger/apiResponse',
-      ParticipantsController.prototype.list,
+      ParticipantController.prototype.list,
     ) as Record<string, { type?: unknown; isArray?: boolean }>;
     const ok = responses['200'];
     expect(ok.isArray).toBeFalsy();
-    expect(ok.type).toBe(PaginatedParticipantsDto);
+    expect(ok.type).toBe(PaginatedParticipantDto);
   });
 
   it('documents single-resource responses as ParticipantDto', () => {
     for (const method of ['findById', 'update'] as const) {
       const responses = Reflect.getMetadata(
         'swagger/apiResponse',
-        ParticipantsController.prototype[method],
+        ParticipantController.prototype[method],
       ) as Record<string, { type?: unknown }>;
       expect(responses['200'].type).toBe(ParticipantDto);
     }
@@ -68,7 +68,7 @@ describe('ParticipantsController', () => {
     for (const method of methods) {
       const responses = Reflect.getMetadata(
         'swagger/apiResponse',
-        ParticipantsController.prototype[method],
+        ParticipantController.prototype[method],
       ) as Record<
         string,
         { description?: string; type?: unknown; isArray?: boolean }

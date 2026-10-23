@@ -16,14 +16,14 @@ import {
 import { AuditService } from '../../common/audit/audit.service';
 import { InputValidationError } from '../../common/errors/validation.error';
 import { PrismaService } from '../../database/prisma.service';
-import { ParticipantNotFoundError } from './participants.error';
-import { ParticipantsRepository } from './participants.repository';
+import { ParticipantNotFoundError } from './participant.error';
+import { ParticipantRepository } from './participant.repository';
 import {
   CreateParticipantData,
   ParticipantFilter,
   ParticipantSort,
   UpdateParticipantData,
-} from './participants.type';
+} from './participant.type';
 
 /**
  * Application/domain layer. Owns:
@@ -33,10 +33,10 @@ import {
  * It speaks DTOs in and out; the repository handles persistence.
  */
 @Injectable()
-export class ParticipantsService {
+export class ParticipantService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly repository: ParticipantsRepository,
+    private readonly repository: ParticipantRepository,
     private readonly audit: AuditService,
   ) {}
 
