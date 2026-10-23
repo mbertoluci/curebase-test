@@ -1,4 +1,4 @@
-import { BmiBand, Unit } from '@org/contracts';
+import { BmiBand, Paginated, ParticipantView, Unit } from '@org/contracts';
 import {
   act,
   fireEvent,
@@ -8,7 +8,7 @@ import {
 } from '@testing-library/react';
 import { ApiError } from '@/shared/http';
 import { api } from '@/entities/participant/api';
-import HomePage from './page';
+import { ParticipantPage } from './ParticipantPage';
 
 jest.mock('@/entities/participant/api', () => ({
   __esModule: true,
@@ -21,7 +21,7 @@ jest.mock('@/entities/participant/api', () => ({
 }));
 const mockApi = api as jest.Mocked<typeof api>;
 
-const view = {
+const view: ParticipantView = {
   id: 'p1',
   firstName: 'Ada',
   lastName: 'Lovelace',
@@ -36,10 +36,15 @@ const view = {
   createdAt: '2026-01-01T00:00:00.000Z',
   updatedAt: '2026-01-01T00:00:00.000Z',
 };
-const onePage = {
+const onePage: Paginated<ParticipantView> = {
   data: [view],
   pageInfo: { page: 1, pageSize: 25, total: 1, totalPages: 1 },
 };
+
+// Most tests render with server-seeded data (the SSR path); pass null to
+// exercise the client-loads-on-mount path.
+const renderPage = (initialData: Paginated<ParticipantView> | null = onePage) =>
+  render(<ParticipantPage initialData={initialData} />);
 
 beforeEach(() => {
   jest.clearAllMocks();
@@ -48,22 +53,28 @@ beforeEach(() => {
   mockApi.remove.mockResolvedValue(undefined);
 });
 
-describe('HomePage', () => {
-  it('loads and renders participants from the API', async () => {
-    render(<HomePage />);
+describe('ParticipantPage', () => {
+  it('renders the server-provided participants without an initial fetch', async () => {
+    renderPage();
+    expect(await screen.findByText('Ada Lovelace')).toBeTruthy();
+    expect(mockApi.list).not.toHaveBeenCalled();
+  });
+
+  it('loads on mount when the server did not seed data', async () => {
+    renderPage(null);
     expect(await screen.findByText('Ada Lovelace')).toBeTruthy();
     expect(mockApi.list).toHaveBeenCalled();
   });
 
   it('puts the form into edit mode when a row Edit is clicked', async () => {
-    render(<HomePage />);
+    renderPage();
     fireEvent.click(await screen.findByText('Edit'));
     expect(await screen.findByText('Edit participant')).toBeTruthy();
   });
 
   it('deletes a participant after confirmation and shows a toast', async () => {
     jest.spyOn(window, 'confirm').mockReturnValue(true);
-    render(<HomePage />);
+    renderPage();
     fireEvent.click(await screen.findByText('Delete'));
     await waitFor(() => expect(mockApi.remove).toHaveBeenCalledWith('p1'));
     expect(await screen.findByText('Participant deleted.')).toBeTruthy();
@@ -71,13 +82,13 @@ describe('HomePage', () => {
 
   it('does not delete when the confirmation is declined', async () => {
     jest.spyOn(window, 'confirm').mockReturnValue(false);
-    render(<HomePage />);
+    renderPage();
     fireEvent.click(await screen.findByText('Delete'));
     expect(mockApi.remove).not.toHaveBeenCalled();
   });
 
   it('reloads with a search filter as the user types', async () => {
-    render(<HomePage />);
+    renderPage();
     await screen.findByText('Ada Lovelace');
     fireEvent.change(screen.getByLabelText('Search'), {
       target: { value: 'ada' },
@@ -91,7 +102,7 @@ describe('HomePage', () => {
   });
 
   it('reloads sorted when a column header is clicked', async () => {
-    render(<HomePage />);
+    renderPage();
     await screen.findByText('Ada Lovelace');
     fireEvent.click(screen.getByRole('button', { name: 'BMI' }));
     await waitFor(() =>
@@ -104,7 +115,7 @@ describe('HomePage', () => {
 
   it('creates via the form and shows a success toast', async () => {
     mockApi.create.mockResolvedValue(view);
-    render(<HomePage />);
+    renderPage();
     await screen.findByText('Ada Lovelace');
 
     fireEvent.change(screen.getByLabelText('First name'), {
@@ -134,11 +145,10 @@ describe('HomePage', () => {
   });
 
   it('paginates to the next page', async () => {
-    mockApi.list.mockResolvedValue({
+    renderPage({
       data: [view],
       pageInfo: { page: 1, pageSize: 2, total: 3, totalPages: 2 },
     });
-    render(<HomePage />);
     await screen.findByText('Ada Lovelace');
     fireEvent.click(screen.getByRole('button', { name: 'Next' }));
     await waitFor(() =>
@@ -154,14 +164,14 @@ describe('HomePage', () => {
     mockApi.remove.mockRejectedValue(
       new ApiError(500, 'INTERNAL_ERROR', 'delete boom'),
     );
-    render(<HomePage />);
+    renderPage();
     fireEvent.click(await screen.findByText('Delete'));
     expect(await screen.findByText('delete boom')).toBeTruthy();
   });
 
   it('updates a record and shows an updated toast', async () => {
     mockApi.update.mockResolvedValue(view);
-    render(<HomePage />);
+    renderPage();
     fireEvent.click(await screen.findByText('Edit'));
     await screen.findByText('Edit participant');
     fireEvent.click(screen.getByRole('button', { name: /Save changes/ }));
@@ -191,7 +201,7 @@ describe('list request ordering', () => {
       mockApi.list
         .mockReturnValueOnce(a.promise)
         .mockReturnValueOnce(b.promise);
-      render(<HomePage />);
+      renderPage(null); // no seed: the mount load is the first request
       await act(async () => {
         jest.advanceTimersByTime(250);
       });
@@ -221,7 +231,7 @@ describe('list request ordering', () => {
     const a = deferred<typeof onePage>();
     const b = deferred<typeof onePage>();
     mockApi.list.mockReturnValueOnce(a.promise).mockReturnValueOnce(b.promise);
-    render(<HomePage />);
+    renderPage(null);
     await act(async () => {
       jest.advanceTimersByTime(250);
     });

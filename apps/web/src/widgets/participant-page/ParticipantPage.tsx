@@ -1,6 +1,11 @@
 'use client';
 
-import { DEFAULT_SORT_FIELD, DEFAULT_SORT_DIR } from '@org/contracts';
+import {
+  DEFAULT_SORT_FIELD,
+  DEFAULT_SORT_DIR,
+  Paginated,
+  ParticipantView,
+} from '@org/contracts';
 import { Card, cx } from '@/shared/ui';
 import { ParticipantForm } from '@/features/participant-form';
 import {
@@ -9,8 +14,13 @@ import {
   useParticipantList,
 } from '@/features/participant-list';
 
+interface Props {
+  /** First page rendered on the server (null when the SSR fetch failed). */
+  initialData: Paginated<ParticipantView> | null;
+}
+
 /** The participant-capture screen: form on top, filterable/paginated table below. */
-export function ParticipantPage() {
+export function ParticipantPage({ initialData }: Props) {
   const {
     query,
     page,
@@ -25,7 +35,7 @@ export function ParticipantPage() {
     handleDelete,
     cancelEdit,
     resetFilters,
-  } = useParticipantList();
+  } = useParticipantList(initialData);
 
   return (
     <main className="mx-auto flex max-w-[1040px] flex-col gap-6 px-4 pt-8 pb-20">
