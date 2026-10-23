@@ -9,7 +9,7 @@ import {
   ParticipantSortField,
   ParticipantView,
 } from '@org/contracts';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { api, ApiError } from '../lib/api';
 import { Filters } from '../components/Filters';
 import { ParticipantForm } from '../components/ParticipantForm';
@@ -33,17 +33,24 @@ export default function HomePage() {
   const [toast, setToast] = useState<Toast | null>(null);
   const [refresh, setRefresh] = useState(0);
 
+  // Monotonic request id: only the most recently issued load may touch state,
+  // so a slow earlier response can't overwrite a newer one (stale-while-typing).
+  const loadSeq = useRef(0);
   const load = useCallback(async (q: ListParticipantsQuery) => {
+    const seq = ++loadSeq.current;
     setLoading(true);
     setError(null);
     try {
-      setPage(await api.list(q));
+      const result = await api.list(q);
+      if (seq !== loadSeq.current) return; // superseded by a newer load
+      setPage(result);
     } catch (err) {
+      if (seq !== loadSeq.current) return;
       setError(
         err instanceof ApiError ? err.message : 'Could not load participants.',
       );
     } finally {
-      setLoading(false);
+      if (seq === loadSeq.current) setLoading(false);
     }
   }, []);
 

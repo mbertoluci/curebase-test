@@ -43,6 +43,13 @@ describe('api client', () => {
     });
   });
 
+  it('rejects a 2xx whose body is not a readable JSON object (INVALID_RESPONSE)', async () => {
+    mockFetch(200, null); // e.g. an HTML proxy page or empty body
+    await expect(api.list()).rejects.toMatchObject({
+      code: 'INVALID_RESPONSE',
+    });
+  });
+
   it('wraps a network failure as a NETWORK_ERROR ApiError', async () => {
     global.fetch = jest
       .fn()

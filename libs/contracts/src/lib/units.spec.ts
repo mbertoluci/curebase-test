@@ -23,8 +23,8 @@ describe('measurement precision', () => {
 
   it('rejects precision that would change persisted measurements', () => {
     expect(measurementErrors(72.249, 170.001, Unit.METRIC, 30)).toEqual([
-      'weight must have at most 2 decimal places',
-      'height must have at most 2 decimal places',
+      { field: 'weight', message: 'weight must have at most 2 decimal places' },
+      { field: 'height', message: 'height must have at most 2 decimal places' },
     ]);
   });
 });
@@ -39,32 +39,38 @@ describe('measurementErrors', () => {
   });
 
   it('flags an unknown unit', () => {
-    expect(measurementErrors(80, 180, 'XX' as Unit, 30)[0]).toMatch(
-      /unit must be one of/,
-    );
+    const [first] = measurementErrors(80, 180, 'XX' as Unit, 30);
+    expect(first).toMatchObject({ field: 'unit' });
+    expect(first.message).toMatch(/unit must be one of/);
   });
 
-  it('flags out-of-range weight, height and age with unit-aware messages', () => {
+  it('flags out-of-range weight, height and age, each tagged with its field', () => {
     const errors = measurementErrors(5000, 5000, Unit.METRIC, 200);
     expect(errors).toEqual([
-      expect.stringMatching(/weight must be between 2 and 500 kg/),
-      expect.stringMatching(/height must be between 50 and 250 cm/),
-      expect.stringMatching(/age must be a whole number between 0 and 120/),
+      { field: 'weight', message: expect.stringMatching(/between 2 and 500 kg/) },
+      {
+        field: 'height',
+        message: expect.stringMatching(/between 50 and 250 cm/),
+      },
+      {
+        field: 'age',
+        message: expect.stringMatching(/whole number between 0 and 120/),
+      },
     ]);
   });
 
   it('rejects a non-integer age', () => {
     expect(
-      measurementErrors(80, 180, Unit.METRIC, 30.5).some((m) =>
-        m.startsWith('age'),
+      measurementErrors(80, 180, Unit.METRIC, 30.5).some(
+        (e) => e.field === 'age',
       ),
     ).toBe(true);
   });
 
   it('uses lb/in wording for US bounds', () => {
     const errors = measurementErrors(5000, 5000, Unit.US, 30);
-    expect(errors[0]).toMatch(/lb/);
-    expect(errors[1]).toMatch(/in/);
+    expect(errors[0].message).toMatch(/lb/);
+    expect(errors[1].message).toMatch(/in/);
   });
 });
 
