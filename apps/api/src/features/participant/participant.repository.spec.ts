@@ -1,10 +1,16 @@
 import { computeBmi, roundBmi, Unit } from '@org/contracts';
+import {
+  AuditEntity,
+  AuditRepository,
+} from '../../common/audit/audit.repository';
+import { TransactionManager } from '../../database/transaction-manager';
 import { PrismaService } from '../../database/prisma.service';
 import {
   EmailAlreadyExistsError,
   ParticipantNotFoundError,
 } from './participant.error';
 import { ParticipantRepository } from './participant.repository';
+import { ParticipantUnitOfWork } from './participant.unit-of-work';
 import { CreateParticipantData } from './participant.type';
 
 /**
@@ -58,6 +64,11 @@ describe('destructive-test database guard', () => {
 describe('ParticipantRepository (integration)', () => {
   const prisma = new PrismaService();
   const repo = new ParticipantRepository(prisma);
+  const uow = new ParticipantUnitOfWork(
+    new TransactionManager(prisma),
+    repo,
+    new AuditRepository(),
+  );
 
   const data = (
     over: Partial<CreateParticipantData> = {},
@@ -82,6 +93,38 @@ describe('ParticipantRepository (integration)', () => {
 
   const create = (over: Partial<CreateParticipantData> = {}) =>
     prisma.$transaction((tx) => repo.createTx(tx, data(over)));
+
+  it('rolls the whole unit of work back when the audit write fails (atomicity)', async () => {
+    // Independent end-to-end proof: run the REAL UoW (manager + repos + tx)
+    // where the audit row violates the DB CHECK after the participant was
+    // already created - everything must roll back, nothing may remain.
+    const payload = data({ email: 'rollback-probe@x.com' });
+    await expect(
+      uow.run(async (tx) => {
+        await tx.create(payload);
+        await tx.audit({
+          actor: 'qa',
+          // Bypasses the TS enum on purpose: the DB CHECK must be the wall.
+          action: 'BOGUS' as never,
+          entity: AuditEntity.PARTICIPANT,
+          entityId: '00000000-0000-0000-0000-000000000000',
+        });
+      }),
+    ).rejects.toThrow();
+    // The participant/profile/user inserts from the same tx are gone.
+    const leftovers = await prisma.profile.count({
+      where: { email: 'rollback-probe@x.com' },
+    });
+    expect(leftovers).toBe(0);
+    const page = await repo.list(
+      { search: 'rollback-probe' },
+      { field: 'createdAt', direction: 'desc' },
+      { page: 1, pageSize: 25 },
+    );
+    expect(page.total).toBe(0);
+    // And no orphan audit row survived either.
+    expect(await prisma.auditLog.count()).toBe(0);
+  });
 
   beforeAll(async () => {
     assertLocalTestDatabase();

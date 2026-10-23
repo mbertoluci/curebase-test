@@ -40,8 +40,7 @@ apps/
       database/        PrismaService (connection lifecycle) + global module
       common/
         errors/        AppException base, global exception filter, @Throws
-        validation/    generic @Exists validator (+ module)
-        audit/         AuditService (append-only audit_logs, same-tx writes)
+        audit/         AuditRepository (append-only audit_logs, same-tx writes)
       features/
         participants/  controller · dto · service · repository · type · error · module
   api-e2e/             HTTP smoke tests against a running API
@@ -114,7 +113,7 @@ Coverage is collected on every `nx test` and enforced via `coverageThreshold`, s
 \* The api **global** branch gate is 70% because Nest/Swagger method decorators generate branch points that can't be meaningfully exercised; the service additionally carries its own per-path threshold of 100% statements/functions/lines and 80% branches.
 
 - **contracts** - BMI formulas (checked against the brief's own examples), bands, conversions, bounds.
-- **api** - service domain logic, exception filter, controller, DTO validation, audit, `@Exists`; plus **repository + Prisma integration tests against the real Postgres** (they `TRUNCATE` between tests and refuse to run against a non-local host, so point them at a local throwaway DB. The host guard does not detect local tunnels or distinguish a disposable database from other local databases).
+- **api** - service domain logic, exception filter, controller, DTO validation, audit; plus **repository + Prisma integration tests against the real Postgres** (they `TRUNCATE` between tests and refuse to run against a non-local host, so point them at a local throwaway DB. The host guard does not detect local tunnels or distinguish a disposable database from other local databases).
 - **web** - form model, API client, and the React components (form, table, filters) via Testing Library, plus the page orchestration.
 - **api-e2e** - full HTTP path against a running server: create → duplicate 409 → validation 400 → update recompute → search → soft-delete 404.
 
