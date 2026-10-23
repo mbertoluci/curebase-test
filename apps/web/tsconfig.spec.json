@@ -15,12 +15,7 @@
     "next-env.d.ts",
     "jest.config.cts"
   ],
-  "exclude": [
-    "node_modules",
-    "dist",
-    "out-tsc",
-    ".next"
-  ],
+  "exclude": ["node_modules", "dist", "out-tsc", ".next"],
   "references": [
     {
       "path": "../../libs/contracts"

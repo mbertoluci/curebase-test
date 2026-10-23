@@ -1,6 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { ParticipantView } from '@org/contracts';
-import { AuditEntry, AuditRepository } from '../../common/audit/audit.repository';
+import {
+  AuditEntry,
+  AuditRepository,
+} from '../../common/audit/audit.repository';
 import { TransactionManager } from '../../database/transaction-manager';
 import { ParticipantRepository } from './participant.repository';
 import {

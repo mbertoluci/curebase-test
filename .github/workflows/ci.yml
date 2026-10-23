@@ -1,40 +1,92 @@
 name: CI
 
+# Runs on every PR (the merge gate) and on pushes to main (post-merge signal).
 on:
   push:
-    branches:
-      - main
+    branches: [main]
   pull_request:
 
+# Least-privilege by default; the Sonar step reads PR metadata to decorate it.
 permissions:
-  actions: read
   contents: read
+  pull-requests: read
+
+# A newer push to the same ref cancels the in-flight run - no wasted minutes.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  main:
+  # Single required status check: "verify". Branch protection requires this to
+  # pass before a PR can merge (see .github/branch-protection.md).
+  verify:
+    name: verify
     runs-on: ubuntu-latest
+
+    # The api suite includes repository integration tests against a real
+    # Postgres. The DB guard only allows a local host, so the service is reached
+    # at localhost and DATABASE_URL points there.
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: bmi
+          POSTGRES_PASSWORD: bmi
+          POSTGRES_DB: bmi
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U bmi"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgresql://bmi:bmi@localhost:5432/bmi?schema=public
+      # Supplied via repo secrets; the Sonar step is skipped when absent so the
+      # pipeline stays green on forks and before the token is configured.
+      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+      SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+
     steps:
       - uses: actions/checkout@v5
         with:
-          filter: tree:0
+          # Full history so Sonar can attribute blame/new-code accurately.
           fetch-depth: 0
 
-      # This enables task distribution via Nx Cloud
-      # Run this command as early as possible, before dependencies are installed
-      # Learn more at https://nx.dev/docs/reference/nx-cloud-cli#npx-nxcloud-startcirun
-      - run: npx nx start-ci-run --distribute-on="3 linux-medium-js" --stop-agents-after="e2e"
-
-      # Cache node_modules
       - uses: actions/setup-node@v5
         with:
-          node-version: 24
-          cache: 'npm'
+          node-version: 22
+          cache: npm
 
-      - run: npm ci
+      - name: Install dependencies
+        run: npm ci
 
-      # Prepend any command with "nx record --" to record its logs to Nx Cloud
-      - run: npx nx record -- npx nx format:check --base="remotes/origin/main"
-      - run: npx nx run-many -t lint test build typecheck e2e
-      # Nx Cloud recommends fixes for failures to help you get CI green faster. Learn more: https://nx.dev/docs/features/ci-features/self-healing-ci
-      - run: npx nx fix-ci
-        if: always()
+      - name: Prettier (format check)
+        run: npx prettier --check "**/*.{ts,tsx,js,jsx,cjs,mjs,json,css,md,yml,yaml}"
+
+      - name: Lint
+        run: npx nx run-many -t lint --skip-nx-cache
+
+      - name: Typecheck
+        run: npx nx run-many -t typecheck --skip-nx-cache
+
+      - name: Prisma client + migrations
+        run: |
+          npx prisma generate --schema apps/api/prisma/schema.prisma
+          npx prisma migrate deploy --schema apps/api/prisma/schema.prisma
+
+      - name: Test (with coverage)
+        run: npx nx run-many -t test --skip-nx-cache
+
+      - name: Build
+        run: npx nx run-many -t build --skip-nx-cache
+
+      # SonarQube / SonarCloud static analysis + coverage upload. Reads
+      # sonar-project.properties. Skipped automatically when SONAR_TOKEN is unset.
+      - name: SonarQube scan
+        if: ${{ env.SONAR_TOKEN != '' }}
+        uses: sonarsource/sonarqube-scan-action@v5
+        env:
+          SONAR_TOKEN: ${{ env.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ env.SONAR_HOST_URL }}

@@ -57,11 +57,9 @@ describe('PrismaService log privacy', () => {
           });
         }
         expect(debug.mock.calls).toEqual([
+          ['Prisma query SELECT "id" FROM "profiles" WHERE email = $1 - 17ms'],
           [
-            'Prisma query SELECT "id" FROM "profiles" WHERE email = $1 - 17ms',
-          ],
-          [
-            "Prisma query SELECT \"id\" FROM \"profiles\" WHERE email = '…' - 17ms",
+            'Prisma query SELECT "id" FROM "profiles" WHERE email = \'…\' - 17ms',
           ],
           ['Prisma query OTHER - 17ms'],
           [

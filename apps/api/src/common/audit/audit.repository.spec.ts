@@ -1,9 +1,5 @@
 import { Prisma } from '@prisma/client';
-import {
-  AuditAction,
-  AuditEntity,
-  AuditRepository,
-} from './audit.repository';
+import { AuditAction, AuditEntity, AuditRepository } from './audit.repository';
 
 describe('AuditRepository', () => {
   const create = jest.fn();

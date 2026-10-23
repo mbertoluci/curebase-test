@@ -1,0 +1,4 @@
+# Default owner for everything in the repo. With "Require review from Code
+# Owners" enabled in branch protection, every PR automatically requests this
+# review and cannot merge without it.
+* @mbertoluci

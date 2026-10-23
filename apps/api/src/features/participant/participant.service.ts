@@ -13,10 +13,7 @@ import {
   roundBmi,
   UpdateParticipantInput,
 } from '@org/contracts';
-import {
-  AuditAction,
-  AuditEntity,
-} from '../../common/audit/audit.repository';
+import { AuditAction, AuditEntity } from '../../common/audit/audit.repository';
 import { InputValidationError } from '../../common/errors/validation.error';
 import { ParticipantNotFoundError } from './participant.error';
 import { ParticipantRepository } from './participant.repository';
@@ -137,9 +134,7 @@ export class ParticipantService {
     return view;
   }
 
-  async list(
-    query: ListParticipantQuery,
-  ): Promise<Paginated<ParticipantView>> {
+  async list(query: ListParticipantQuery): Promise<Paginated<ParticipantView>> {
     const page = query.page && query.page > 0 ? query.page : 1;
     const pageSize = Math.min(
       query.pageSize ?? DEFAULT_PAGE_SIZE,
