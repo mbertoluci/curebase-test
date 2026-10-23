@@ -57,6 +57,23 @@ export const DEFAULT_SORT_FIELD: ParticipantSortField = 'createdAt';
 export const DEFAULT_SORT_DIR: SortDirection = 'desc';
 
 /**
+ * The allow-listed sort fields and directions, shared so the API's runtime
+ * validation list is a single source of truth with the types above (the
+ * `satisfies` keeps them in lock-step - adding a field to the type without
+ * listing it here is a compile error).
+ */
+export const PARTICIPANT_SORT_FIELDS = [
+  'createdAt',
+  'bmiValue',
+  'age',
+  'lastName',
+] as const satisfies readonly ParticipantSortField[];
+export const SORT_DIRECTIONS = [
+  'asc',
+  'desc',
+] as const satisfies readonly SortDirection[];
+
+/**
  * Canonical email form. Email is treated case-insensitively (and trimmed), so
  * the API stores and de-duplicates on this form and the web compares with it;
  * "A@X.com" and "a@x.com" are the same participant.

@@ -12,13 +12,15 @@ import {
   Put,
   Query,
 } from '@nestjs/common';
-import {
-  ApiBadRequestResponse,
-  ApiCreatedResponse,
-  ApiOkResponse,
-  ApiTags,
-} from '@nestjs/swagger';
+import { ApiCreatedResponse, ApiOkResponse, ApiTags } from '@nestjs/swagger';
 import { Paginated, ParticipantView } from '@org/contracts';
+import {
+  ACTOR_HEADER,
+  API_ROUTES,
+  API_TAGS,
+  DEFAULT_ACTOR,
+} from '../../common/api.constants';
+import { ApiValidationErrorResponse } from '../../common/errors/api-validation-response.decorator';
 import { Throws } from '../../common/errors/throws.decorator';
 import {
   CreateParticipantDto,
@@ -38,30 +40,26 @@ import { ParticipantsService } from './participants.service';
  * to the service - it never contains business logic. Expected errors are
  * declared with `@Throws`, which also documents them in OpenAPI.
  */
-@ApiTags('participants')
-@Controller('participants')
+@ApiTags(API_TAGS.participants)
+@Controller(API_ROUTES.participants)
 export class ParticipantsController {
   constructor(private readonly service: ParticipantsService) {}
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
   @ApiCreatedResponse({ type: ParticipantDto })
-  @ApiBadRequestResponse({
-    description: 'Validation failed (VALIDATION_FAILED)',
-  })
+  @ApiValidationErrorResponse()
   @Throws(EmailAlreadyExistsError)
   create(
     @Body() body: CreateParticipantDto,
-    @Headers('x-actor-id') actor?: string,
+    @Headers(ACTOR_HEADER) actor?: string,
   ): Promise<ParticipantView> {
     return this.service.create(body, this.actorOf(actor));
   }
 
   @Get()
   @ApiOkResponse({ type: PaginatedParticipantsDto })
-  @ApiBadRequestResponse({
-    description: 'Validation failed (VALIDATION_FAILED)',
-  })
+  @ApiValidationErrorResponse()
   list(
     @Query() query: ListParticipantsQueryDto,
   ): Promise<Paginated<ParticipantView>> {
@@ -69,9 +67,7 @@ export class ParticipantsController {
   }
 
   @Get(':id')
-  @ApiBadRequestResponse({
-    description: 'Validation failed (VALIDATION_FAILED)',
-  })
+  @ApiValidationErrorResponse()
   @ApiOkResponse({ type: ParticipantDto })
   @Throws(ParticipantNotFoundError)
   findById(@Param('id', ParseUUIDPipe) id: string): Promise<ParticipantView> {
@@ -80,33 +76,29 @@ export class ParticipantsController {
 
   @Put(':id')
   @ApiOkResponse({ type: ParticipantDto })
-  @ApiBadRequestResponse({
-    description: 'Validation failed (VALIDATION_FAILED)',
-  })
+  @ApiValidationErrorResponse()
   @Throws(ParticipantNotFoundError, EmailAlreadyExistsError)
   update(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() body: UpdateParticipantDto,
-    @Headers('x-actor-id') actor?: string,
+    @Headers(ACTOR_HEADER) actor?: string,
   ): Promise<ParticipantView> {
     return this.service.update(id, body, this.actorOf(actor));
   }
 
   @Delete(':id')
-  @ApiBadRequestResponse({
-    description: 'Validation failed (VALIDATION_FAILED)',
-  })
+  @ApiValidationErrorResponse()
   @HttpCode(HttpStatus.NO_CONTENT)
   @Throws(ParticipantNotFoundError)
   remove(
     @Param('id', ParseUUIDPipe) id: string,
-    @Headers('x-actor-id') actor?: string,
+    @Headers(ACTOR_HEADER) actor?: string,
   ): Promise<void> {
     return this.service.remove(id, this.actorOf(actor));
   }
 
   /** No auth in scope, so the actor is an optional header, defaulting to anonymous. */
   private actorOf(actor?: string): string {
-    return actor?.trim() || 'anonymous';
+    return actor?.trim() || DEFAULT_ACTOR;
   }
 }

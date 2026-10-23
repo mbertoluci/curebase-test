@@ -7,6 +7,8 @@ import {
   DEFAULT_SORT_FIELD,
   MAX_PAGE_SIZE,
   normalizeEmail,
+  PARTICIPANT_SORT_FIELDS,
+  SORT_DIRECTIONS,
   Unit,
 } from '@org/contracts';
 import type {
@@ -34,13 +36,11 @@ import {
   Min,
 } from 'class-validator';
 
-const SORT_FIELDS: ParticipantSortField[] = [
-  'createdAt',
-  'bmiValue',
-  'age',
-  'lastName',
-];
-const SORT_DIRS: SortDirection[] = ['asc', 'desc'];
+// The runtime allow-lists come from the shared contract (single source of
+// truth with ParticipantSortField / SortDirection); spread into mutable arrays
+// for the decorators that expect them.
+const SORT_FIELDS = [...PARTICIPANT_SORT_FIELDS];
+const SORT_DIRS = [...SORT_DIRECTIONS];
 
 /**
  * POST body. class-validator here does the *structural* validation (types,
