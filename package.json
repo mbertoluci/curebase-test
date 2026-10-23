@@ -13,8 +13,10 @@
     "typecheck": "nx run-many -t typecheck",
     "verify": "nx run-many -t typecheck lint test",
     "e2e": "nx e2e @org/api-e2e",
-    "db:up": "docker compose up -d",
+    "db:up": "docker compose up -d db",
     "db:down": "docker compose down",
+    "docker:up": "docker compose up --build",
+    "docker:down": "docker compose down",
     "db:migrate": "prisma migrate dev --schema apps/api/prisma/schema.prisma",
     "db:studio": "prisma studio --schema apps/api/prisma/schema.prisma"
   },

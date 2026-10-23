@@ -17,5 +17,55 @@ services:
       timeout: 5s
       retries: 10
 
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    container_name: curebase-bmi-api
+    restart: unless-stopped
+    environment:
+      # Inside the compose network the API reaches Postgres by its service name.
+      DATABASE_URL: postgresql://bmi:bmi@db:5432/bmi?schema=public
+      API_PORT: '3333'
+      WEB_ORIGIN: http://localhost:3000
+      LOG_LEVEL: info
+      NODE_ENV: production
+    ports:
+      - '3333:3333'
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      # Ready once the list endpoint answers (DB reachable + migrations applied).
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "require('http').get('http://127.0.0.1:3333/api/participants',r=>process.exit(r.statusCode<500?0:1)).on('error',()=>process.exit(1))",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile.web
+      args:
+        # The browser reaches the API on the published host port.
+        NEXT_PUBLIC_API_URL: http://localhost:3333/api
+    container_name: curebase-bmi-web
+    restart: unless-stopped
+    environment:
+      # The web server (SSR) reaches the API by its compose service name.
+      API_INTERNAL_URL: http://api:3333/api
+      NODE_ENV: production
+    ports:
+      - '3000:3000'
+    depends_on:
+      api:
+        condition: service_healthy
+
 volumes:
   bmi_pgdata:

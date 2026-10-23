@@ -28,6 +28,21 @@ Open the web app at **http://localhost:3000**. API docs (OpenAPI/Swagger) are at
 
 Run API and web separately with `npm run dev:api` / `npm run dev:web`.
 
+### Run everything in Docker
+
+Prefer one command? The whole stack - Postgres, the API (migrations run on start) and the web app - comes up together:
+
+```bash
+docker compose up --build      # or: npm run docker:up
+```
+
+- Web **http://localhost:3000** · API **http://localhost:3333/api** · Postgres `localhost:5433`
+- Startup ordering is handled by health checks: the API waits for the database, applies `prisma migrate deploy`, then serves; the web app waits for the API to answer.
+- **URL wiring** (why two variables): the _browser_ calls the API on the published host port (`NEXT_PUBLIC_API_URL=http://localhost:3333/api`, inlined at build time), while the _web server_ doing SSR reaches it by the compose service name (`API_INTERNAL_URL=http://api:3333/api`). Both are set explicitly in `docker-compose.yml`, so there is no silent fallback.
+- Images are multi-stage production builds (`Dockerfile.api`, `Dockerfile.web`): deps installed and the apps built inside the image, the Prisma client generated for Linux.
+
+Tear down with `docker compose down` (add `-v` to also drop the database volume). `npm run db:up` still starts **only** Postgres, for the local-dev flow above.
+
 ---
 
 ## Project layout

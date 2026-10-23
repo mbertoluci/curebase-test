@@ -1,0 +1,30 @@
+# NestJS API - multi-stage build from the Nx monorepo root (context: .).
+FROM node:22-slim AS build
+WORKDIR /app
+# openssl is required by the Prisma query engine on Debian.
+RUN apt-get update && apt-get install -y --no-install-recommends openssl \
+  && rm -rf /var/lib/apt/lists/*
+# Copy the whole monorepo first so npm can wire the workspace packages
+# (@org/contracts) before installing.
+COPY . .
+RUN npm ci
+# Generate the Prisma client for this (Linux) platform, then bundle the API.
+RUN npx prisma generate --schema apps/api/prisma/schema.prisma \
+  && npx nx build @org/api --skip-nx-cache
+
+FROM node:22-slim AS run
+WORKDIR /app
+RUN apt-get update && apt-get install -y --no-install-recommends openssl \
+  && rm -rf /var/lib/apt/lists/*
+ENV NODE_ENV=production
+# The webpack bundle externalizes node_modules, so carry them (including the
+# generated Prisma client) plus the workspace libs the node_modules symlinks
+# point at, and the schema/migrations needed by `prisma migrate deploy`.
+COPY --from=build /app/node_modules ./node_modules
+COPY --from=build /app/libs ./libs
+COPY --from=build /app/apps/api/dist ./apps/api/dist
+COPY --from=build /app/apps/api/prisma ./apps/api/prisma
+COPY --from=build /app/package.json ./package.json
+EXPOSE 3333
+# Apply any pending migrations, then start the API.
+CMD ["sh", "-c", "npx prisma migrate deploy --schema apps/api/prisma/schema.prisma && node apps/api/dist/main.js"]

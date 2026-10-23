@@ -1,0 +1,16 @@
+# Keep the build context small and never ship host-built (macOS) artifacts into
+# the Linux image - npm ci + the build run fresh inside the Dockerfile.
+**/node_modules
+**/dist
+**/.next
+**/out-tsc
+**/.nx
+.nx
+.git
+.github
+coverage
+*.log
+.env
+.env.local
+Dockerfile.*
+.dockerignore
