@@ -1,11 +1,11 @@
 import { BMI_BAND_LABELS, BmiBand, Unit } from '@org/contracts';
 
-/** CSS modifier class per band (defined in global.css). Restrained, not alarming. */
+/** Tailwind background utility per band (restrained, not alarming). */
 export const BAND_CLASS: Record<BmiBand, string> = {
-  [BmiBand.UNDERWEIGHT]: 'band--underweight',
-  [BmiBand.NORMAL]: 'band--normal',
-  [BmiBand.OVERWEIGHT]: 'band--overweight',
-  [BmiBand.OBESE]: 'band--obese',
+  [BmiBand.UNDERWEIGHT]: 'bg-band-under',
+  [BmiBand.NORMAL]: 'bg-band-normal',
+  [BmiBand.OVERWEIGHT]: 'bg-band-over',
+  [BmiBand.OBESE]: 'bg-band-obese',
 };
 
 export function bandLabel(band: BmiBand | null): string {
