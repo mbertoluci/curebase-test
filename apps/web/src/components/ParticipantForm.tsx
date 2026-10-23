@@ -1,6 +1,11 @@
 'use client';
 
-import { normalizeEmail, ParticipantView, Unit } from '@org/contracts';
+import {
+  AGE_BOUNDS,
+  normalizeEmail,
+  ParticipantView,
+  Unit,
+} from '@org/contracts';
 import {
   cloneElement,
   isValidElement,
@@ -251,8 +256,8 @@ export function ParticipantForm({
             <input
               id="age"
               type="number"
-              min="0"
-              max="120"
+              min={AGE_BOUNDS.min}
+              max={AGE_BOUNDS.max}
               value={values.age}
               onChange={(e) => set('age')(e.target.value)}
             />

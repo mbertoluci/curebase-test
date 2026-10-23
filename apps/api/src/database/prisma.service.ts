@@ -16,8 +16,12 @@ export function scrubSqlLiterals(sql: string): string {
   return sql.replace(/'(?:[^']|'')*'/g, "'…'");
 }
 
-/** Allow-listed operation names for templates we cannot confidently log. */
-const SQL_OPERATIONS: readonly string[] = [
+/**
+ * Known SQL statement keywords, the single source of truth for the query logger:
+ * the allow-list for an operation name we can safely log, and (compiled below) the
+ * gate that decides whether a full scrubbed template is safe to log at all.
+ */
+const SQL_KEYWORDS: readonly string[] = [
   'SELECT',
   'INSERT',
   'UPDATE',
@@ -25,7 +29,15 @@ const SQL_OPERATIONS: readonly string[] = [
   'BEGIN',
   'COMMIT',
   'ROLLBACK',
+  'WITH',
+  'SAVEPOINT',
 ];
+
+/** A scrubbed template is logged in full only when it starts with a known keyword. */
+const SQL_STATEMENT_START = new RegExp(
+  `^[(\\s]*(${SQL_KEYWORDS.join('|')})\\b`,
+  'i',
+);
 
 /**
  * Owns the Prisma Client lifecycle and is the single database handle injected
@@ -73,12 +85,10 @@ export class PrismaService
         // anything else degrades to an allow-listed operation name.
         const scrubbed = scrubSqlLiterals(event.query.trim());
         const operation = scrubbed.split(/\s+/, 1)[0].toUpperCase();
-        const safeOperation = SQL_OPERATIONS.includes(operation)
+        const safeOperation = SQL_KEYWORDS.includes(operation)
           ? operation
           : 'OTHER';
-        const detail = /^[(\s]*(SELECT|INSERT|UPDATE|DELETE|BEGIN|COMMIT|ROLLBACK|WITH|SAVEPOINT)\b/i.test(
-          scrubbed,
-        )
+        const detail = SQL_STATEMENT_START.test(scrubbed)
           ? scrubbed
           : safeOperation;
         this.logger.debug(`Prisma query ${detail} - ${event.duration}ms`);

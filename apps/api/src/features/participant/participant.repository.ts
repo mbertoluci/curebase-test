@@ -25,6 +25,17 @@ type ParticipantRow = Prisma.ParticipantGetPayload<{
 const ACTIVE = { deletedAt: null } as const;
 
 /**
+ * Prisma's known-request-error codes we translate. Prisma types `error.code` as a
+ * plain string and ships no enum for these, so we name the two we handle here
+ * instead of leaving the bare literals at the comparison site.
+ * See https://www.prisma.io/docs/orm/reference/error-reference
+ */
+const PRISMA_ERROR = {
+  RECORD_NOT_FOUND: 'P2025',
+  UNIQUE_VIOLATION: 'P2002',
+} as const;
+
+/**
  * Data-access layer for participants. It is the ONLY place that knows the Prisma
  * schema: it builds queries, converts Decimal/Date entities into the plain
  * {@link ParticipantView} DTO, and translates database errors (unique violation)
@@ -289,13 +300,13 @@ export class ParticipantRepository {
     if (
       id &&
       error instanceof Prisma.PrismaClientKnownRequestError &&
-      error.code === 'P2025'
+      error.code === PRISMA_ERROR.RECORD_NOT_FOUND
     ) {
       return new ParticipantNotFoundError(id);
     }
     if (
       error instanceof Prisma.PrismaClientKnownRequestError &&
-      error.code === 'P2002'
+      error.code === PRISMA_ERROR.UNIQUE_VIOLATION
     ) {
       return new EmailAlreadyExistsError(email);
     }
