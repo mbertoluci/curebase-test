@@ -1,11 +1,13 @@
 'use client';
 
 import { DEFAULT_SORT_FIELD, DEFAULT_SORT_DIR } from '@org/contracts';
-import { Card, cx } from '../../shared/ui';
-import { Filters } from './Filters';
-import { ParticipantForm } from './ParticipantForm';
-import { ParticipantsTable } from './ParticipantsTable';
-import { useParticipantList } from './use-participant-list';
+import { Card, cx } from '@/shared/ui';
+import { ParticipantForm } from '@/features/participant-form';
+import {
+  Filters,
+  ParticipantsTable,
+  useParticipantList,
+} from '@/features/participant-list';
 
 /** The participant-capture screen: form on top, filterable/paginated table below. */
 export function ParticipantPage() {

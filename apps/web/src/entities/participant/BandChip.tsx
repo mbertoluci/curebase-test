@@ -1,6 +1,6 @@
 import { BmiBand } from '@org/contracts';
-import { cx } from '../../shared/ui';
-import { BAND_CLASS, bandLabel } from './participant.display';
+import { cx } from '@/shared/ui';
+import { BAND_CLASS, bandLabel } from './display';
 
 /** A small, restrained colour chip for the BMI category (never alarming). */
 export function BandChip({ band }: { band: BmiBand | null }) {

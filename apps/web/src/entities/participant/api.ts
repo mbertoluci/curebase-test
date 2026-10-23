@@ -5,7 +5,7 @@ import type {
   ParticipantView,
   UpdateParticipantInput,
 } from '@org/contracts';
-import { ApiError, request } from '../../shared/http';
+import { ApiError, request } from '@/shared/http';
 
 function toQueryString(query: ListParticipantQuery): string {
   const params = new URLSearchParams();

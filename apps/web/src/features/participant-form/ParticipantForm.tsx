@@ -8,21 +8,22 @@ import {
 } from '@org/contracts';
 import { useEffect, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
-import { ApiError } from '../../shared/http';
-import { reportError } from '../../shared/report-error';
-import { Button, Field, Input, Notice, cardSurface, cx } from '../../shared/ui';
-import { api } from './participant.api';
-import { formatBmi, weightUnit } from './participant.display';
+import { ApiError } from '@/shared/http';
+import { reportError } from '@/shared/report-error';
+import { Button, Field, Input, Notice, cardSurface, cx } from '@/shared/ui';
 import {
+  api,
+  BandChip,
   convertToUnit,
   emptyForm,
   FieldErrors,
+  formatBmi,
   fromView,
   FormValues,
   livePreview,
   validate,
-} from './participant.model';
-import { BandChip } from './BandChip';
+  weightUnit,
+} from '@/entities/participant';
 
 interface Props {
   editing: ParticipantView | null;

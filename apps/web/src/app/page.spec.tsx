@@ -6,11 +6,11 @@ import {
   screen,
   waitFor,
 } from '@testing-library/react';
-import { ApiError } from '../shared/http';
-import { api } from '../features/participant/participant.api';
+import { ApiError } from '@/shared/http';
+import { api } from '@/entities/participant/api';
 import HomePage from './page';
 
-jest.mock('../features/participant/participant.api', () => ({
+jest.mock('@/entities/participant/api', () => ({
   __esModule: true,
   api: {
     list: jest.fn(),

@@ -1,7 +1,7 @@
 'use client';
 
 import { ListParticipantQuery, Unit } from '@org/contracts';
-import { Button, Field, Input, Select } from '../../shared/ui';
+import { Button, Field, Input, Select } from '@/shared/ui';
 
 interface Props {
   query: ListParticipantQuery;

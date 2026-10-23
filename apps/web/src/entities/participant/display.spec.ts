@@ -6,7 +6,7 @@ import {
   heightLabel,
   unitLabel,
   weightUnit,
-} from './participant.display';
+} from './display';
 
 describe('display helpers', () => {
   it('labels BMI bands, and N/A when null', () => {
