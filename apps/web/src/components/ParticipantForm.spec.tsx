@@ -110,37 +110,56 @@ describe('ParticipantForm', () => {
     ).toBe('178');
   });
 
-  it('offers to edit the record whose email matches exactly, not the first substring hit', async () => {
-    const h = handlers();
-    const peter = { ...view, id: 'p9', email: 'peter@x.com' };
-    // A substring hit (someone whose email merely contains the typed one) sorts
-    // first; the exact-email record is the one that must be offered.
-    const substringHit = { ...view, id: 'p1', email: 'peter@x.com.br' };
-    mockApi.create.mockRejectedValue(
-      new ApiError(409, 'EMAIL_ALREADY_EXISTS', 'dup'),
-    );
-    mockApi.list.mockResolvedValue({
-      data: [substringHit, peter],
-      pageInfo: { page: 1, pageSize: 25, total: 2, totalPages: 1 },
-    });
-    render(<ParticipantForm editing={null} {...h} />);
-    fillValidUs(); // types peter@x.com
-    fireEvent.click(screen.getByRole('button', { name: /Save participant/ }));
+  it.each(['peter@x.com', 'Peter@X.com'])(
+    'offers the exact-case record for %s, not a substring or case-only match',
+    async (email) => {
+      const h = handlers();
+      const peter = { ...view, id: 'p9', email };
+      const caseOnlyHit = {
+        ...view,
+        id: 'p2',
+        email: email === 'peter@x.com' ? 'Peter@X.com' : 'peter@x.com',
+      };
+      // A substring hit (someone whose email merely contains the typed one) sorts
+      // first; the exact-email record is the one that must be offered.
+      const substringHit = { ...view, id: 'p1', email: 'peter@x.com.br' };
+      mockApi.create.mockRejectedValue(
+        new ApiError(409, 'EMAIL_ALREADY_EXISTS', 'dup'),
+      );
+      mockApi.list.mockResolvedValue({
+        data: [substringHit, caseOnlyHit, peter],
+        pageInfo: { page: 1, pageSize: 25, total: 3, totalPages: 1 },
+      });
+      render(<ParticipantForm editing={null} {...h} />);
+      fillValidUs();
+      fireEvent.change(screen.getByLabelText('Email'), {
+        target: { value: email },
+      });
+      fireEvent.click(screen.getByRole('button', { name: /Save participant/ }));
 
-    const editBtn = await screen.findByText('Edit their record');
-    fireEvent.click(editBtn);
-    expect(h.onRequestEdit).toHaveBeenCalledWith(peter);
-  });
+      const editBtn = await screen.findByText('Edit their record');
+      fireEvent.click(editBtn);
+      expect(h.onRequestEdit).toHaveBeenCalledWith(peter);
+      expect(mockApi.list).toHaveBeenCalledWith({ search: email });
+      expect(mockApi.create).toHaveBeenCalledWith(
+        expect.objectContaining({ email }),
+      );
+    },
+  );
 
   it('offers nothing when no returned row matches the email exactly', async () => {
     const h = handlers();
     mockApi.create.mockRejectedValue(
       new ApiError(409, 'EMAIL_ALREADY_EXISTS', 'dup'),
     );
-    // Only a substring hit comes back (e.g. search paged past the exact row).
+    // The exact row is on page 2; page 1 contains only substring matches.
     mockApi.list.mockResolvedValue({
-      data: [{ ...view, email: 'peter@x.com.br' }],
-      pageInfo: { page: 1, pageSize: 25, total: 1, totalPages: 1 },
+      data: Array.from({ length: 25 }, (_, i) => ({
+        ...view,
+        id: `substring-${i}`,
+        email: `other${i}-peter@x.com`,
+      })),
+      pageInfo: { page: 1, pageSize: 25, total: 26, totalPages: 2 },
     });
     render(<ParticipantForm editing={null} {...h} />);
     fillValidUs();
@@ -149,7 +168,20 @@ describe('ParticipantForm', () => {
     expect(
       await screen.findByText('A participant with this email already exists'),
     ).toBeTruthy();
+    // Wait for the awaited lookup and handleSubmit's finally, not just the
+    // duplicate error rendered before api.list resolves.
+    await waitFor(() =>
+      expect(
+        (
+          screen.getByRole('button', {
+            name: /Save participant/,
+          }) as HTMLButtonElement
+        ).disabled,
+      ).toBe(false),
+    );
+    expect(mockApi.list).toHaveBeenCalledWith({ search: 'peter@x.com' });
     expect(screen.queryByText('Edit their record')).toBeNull();
+    expect(h.onRequestEdit).not.toHaveBeenCalled();
   });
 
   it('prefills and updates in edit mode', async () => {
