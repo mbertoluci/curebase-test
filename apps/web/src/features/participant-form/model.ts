@@ -77,7 +77,7 @@ function heightValue(values: FormValues): number {
   return num(values.heightCm);
 }
 
-const num = (s: string): number => (s.trim() === '' ? NaN : Number(s));
+const num = (s: string): number => (s.trim() === '' ? Number.NaN : Number(s));
 
 /** Live BMI preview, or null while the inputs aren't usable yet. */
 export function livePreview(
@@ -205,7 +205,10 @@ export function validate(values: FormValues): {
   const email = normalizeEmail(values.email);
   if (!values.firstName.trim()) errors.firstName = 'First name is required';
   if (!values.lastName.trim()) errors.lastName = 'Last name is required';
-  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email))
+  // Linear, backtracking-free shape check (the server's IsEmail is authoritative):
+  // local@label(.label)+, where each label excludes the dot delimiter so there is
+  // no ambiguous overlap to backtrack over.
+  if (!/^[^\s@]+@[^\s@.]+(?:\.[^\s@.]+)+$/.test(email))
     errors.email = 'Enter a valid email';
 
   const weight = num(values.weight);
