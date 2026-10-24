@@ -9,7 +9,7 @@ import { Button } from '../shared/ui';
  * blank page: the error is reported for observability and the user gets a way
  * back via `reset()`.
  */
-export default function Error({
+export default function ErrorBoundary({
   error,
   reset,
 }: {
