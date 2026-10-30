@@ -7,6 +7,7 @@ import { TransactionManager } from '../../database/transaction-manager';
 import { PrismaService } from '../../database/prisma.service';
 import {
   EmailAlreadyExistsError,
+  ParticipantIntegrityError,
   ParticipantNotFoundError,
 } from './participant.error';
 import { ParticipantRepository } from './participant.repository';
@@ -287,6 +288,23 @@ describe('ParticipantRepository (integration)', () => {
     await expect(repo.findById(view.id)).rejects.toThrow(/no active profile/);
     await prisma.profile.delete({ where: { userId: row.userId } });
     await expect(repo.findById(view.id)).rejects.toThrow(/no active profile/);
+  });
+
+  it('rejects a corrupt row with blank required PII rather than emit a blank view', async () => {
+    // A NOT NULL column can still hold a type-valid but corrupt value (empty
+    // string from a bad backfill). The view mapper must refuse it, not render a
+    // participant with no name, so the failure is loud (integrity error) here.
+    const view = await create();
+    const row = await prisma.participant.findUniqueOrThrow({
+      where: { id: view.id },
+    });
+    await prisma.profile.update({
+      where: { userId: row.userId },
+      data: { firstName: '   ' },
+    });
+    await expect(repo.findById(view.id)).rejects.toThrow(
+      ParticipantIntegrityError,
+    );
   });
 
   it('serializes concurrent partial updates so neither field is lost (lost-update guard)', async () => {

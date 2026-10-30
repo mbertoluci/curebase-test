@@ -235,6 +235,22 @@ export class ParticipantRepository {
     }
     const weight = row.weight.toNumber();
     const height = row.height.toNumber();
+    const bmiValue = row.bmiValue.toNumber();
+    // Defense in depth: the columns below are NOT NULL in the schema, but a
+    // blank required PII string or a non-finite measurement is still a valid
+    // shape the type system cannot catch (a bad backfill, a manual edit). Such a
+    // row would render a view with empty names or NaN, so treat it as an
+    // integrity violation (logged, generic 500) rather than emit it.
+    if (
+      !profile.firstName.trim() ||
+      !profile.lastName.trim() ||
+      !profile.email.trim() ||
+      !Number.isFinite(weight) ||
+      !Number.isFinite(height) ||
+      !Number.isFinite(bmiValue)
+    ) {
+      throw new ParticipantIntegrityError(row.id);
+    }
     return {
       id: row.id,
       firstName: profile.firstName,
@@ -245,7 +261,7 @@ export class ParticipantRepository {
       height,
       unit: row.unit,
       age: row.age,
-      bmiValue: row.bmiValue.toNumber(),
+      bmiValue,
       // Classify on the unrounded BMI from the measurements, not the stored
       // 2-decimal bmiValue - otherwise a boundary rounding (e.g. 24.997 -> 25.00)
       // would flip the band. bmiValue stays the display/filter number.

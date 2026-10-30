@@ -1,4 +1,5 @@
 import { VALIDATION_ERROR_DESCRIPTION } from '../../common/api.constants';
+import { InputValidationError } from '../../common/errors/validation.error';
 import { PaginatedParticipantDto, ParticipantDto } from './participant.dto';
 import { ParticipantController } from './participant.controller';
 import { ParticipantService } from './participant.service';
@@ -92,5 +93,23 @@ describe('ParticipantController', () => {
   it('falls back to anonymous for a blank actor header', async () => {
     await controller.create(body, '   ');
     expect(service.create).toHaveBeenCalledWith(body, 'anonymous');
+  });
+
+  it('accepts a well-formed actor (UUID session id)', async () => {
+    const uuid = '3f2504e0-4f89-41d3-9a0c-0305e82c3301';
+    await controller.create(body, uuid);
+    expect(service.create).toHaveBeenCalledWith(body, uuid);
+  });
+
+  it.each([
+    ['too long', 'a'.repeat(129)],
+    ['a space', 'bad actor'],
+    ['a control char', 'a\nb'],
+    ['a disallowed symbol', 'drop/table'],
+  ])('rejects a malformed actor header (%s) with a 400', (_label, value) => {
+    // actorOf validates before delegating, so the handler rejects the request
+    // (InputValidationError -> 400) and never reaches the service.
+    expect(() => controller.create(body, value)).toThrow(InputValidationError);
+    expect(service.create).not.toHaveBeenCalled();
   });
 });

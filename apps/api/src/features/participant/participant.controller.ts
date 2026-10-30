@@ -16,11 +16,14 @@ import { ApiCreatedResponse, ApiOkResponse, ApiTags } from '@nestjs/swagger';
 import { Paginated, ParticipantView } from '@org/contracts';
 import {
   ACTOR_HEADER,
+  ACTOR_MAX_LENGTH,
+  ACTOR_PATTERN,
   API_ROUTES,
   API_TAGS,
   DEFAULT_ACTOR,
 } from '../../common/api.constants';
 import { ApiValidationErrorResponse } from '../../common/errors/api-validation-response.decorator';
+import { InputValidationError } from '../../common/errors/validation.error';
 import { Throws } from '../../common/errors/throws.decorator';
 import {
   CreateParticipantDto,
@@ -97,8 +100,20 @@ export class ParticipantController {
     return this.service.remove(id, this.actorOf(actor));
   }
 
-  /** No auth in scope, so the actor is an optional header, defaulting to anonymous. */
+  /**
+   * No auth in scope, so the actor is an optional header defaulting to
+   * anonymous. A present-but-malformed header is rejected (400) rather than
+   * silently coerced to anonymous, which would drop attribution and let a
+   * caller hide a mutation behind a bad value.
+   */
   private actorOf(actor?: string): string {
-    return actor?.trim() || DEFAULT_ACTOR;
+    const trimmed = actor?.trim();
+    if (!trimmed) return DEFAULT_ACTOR;
+    if (trimmed.length > ACTOR_MAX_LENGTH || !ACTOR_PATTERN.test(trimmed)) {
+      throw new InputValidationError([
+        `${ACTOR_HEADER} must be 1-${ACTOR_MAX_LENGTH} characters of letters, digits, or . @ : + _ -`,
+      ]);
+    }
+    return trimmed;
   }
 }
