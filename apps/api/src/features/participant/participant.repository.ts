@@ -74,6 +74,24 @@ export class ParticipantRepository {
     return row ? this.toView(row) : null;
   }
 
+  /**
+   * Pessimistic row lock for the write path. Taking `FOR UPDATE` on the
+   * participant row before the read-modify-write serializes concurrent writers
+   * on the same participant: a second writer blocks until the first commits,
+   * then reads the latest committed state, so a partial update can no longer
+   * overwrite a concurrently-changed field (lost update) and the audit "before"
+   * is the true prior state. Under READ COMMITTED the lock re-reads the row, so
+   * the merge is always computed from fresh data. A lock request on an
+   * already-deleted row simply matches nothing (the caller then 404s).
+   */
+  async lockByIdTx(tx: Prisma.TransactionClient, id: string): Promise<void> {
+    await tx.$queryRaw`
+      SELECT 1 FROM participants
+      WHERE id = ${id}::uuid AND deleted_at IS NULL
+      FOR UPDATE
+    `;
+  }
+
   /** Filtered, sorted, paginated list. Returns the page plus the total count. */
   async list(
     filter: ParticipantFilter,
@@ -181,18 +199,26 @@ export class ParticipantRepository {
     });
     if (!row) return; // caller already verified existence; nothing to do
     const deletedAt = new Date();
-    await tx.participant.update({
-      where: { ...ACTIVE, id, user: ACTIVE },
-      data: { deletedAt },
-    });
-    await tx.profile.update({
-      where: { ...ACTIVE, userId: row.userId },
-      data: { deletedAt },
-    });
-    await tx.user.update({
-      where: { ...ACTIVE, id: row.userId },
-      data: { deletedAt },
-    });
+    try {
+      await tx.participant.update({
+        where: { ...ACTIVE, id, user: ACTIVE },
+        data: { deletedAt },
+      });
+      await tx.profile.update({
+        where: { ...ACTIVE, userId: row.userId },
+        data: { deletedAt },
+      });
+      await tx.user.update({
+        where: { ...ACTIVE, id: row.userId },
+        data: { deletedAt },
+      });
+    } catch (error) {
+      // A concurrent soft-delete can set deleted_at between the read above and
+      // these guarded writes, so the update matches no active row (P2025).
+      // Translate it to the domain not-found error (-> 404) instead of letting a
+      // raw Prisma error surface as a 500, mirroring updateTx.
+      throw this.translateWriteError(error, '', id);
+    }
   }
 
   // --- mapping & query building (private) --------------------------------

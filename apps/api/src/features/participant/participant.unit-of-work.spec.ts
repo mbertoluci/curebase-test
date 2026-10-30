@@ -13,6 +13,7 @@ describe('ParticipantUnitOfWork', () => {
       run: jest.fn((work: (tx: unknown) => unknown) => work(client)),
     };
     const participants = {
+      lockByIdTx: jest.fn().mockResolvedValue(undefined),
       findByIdTx: jest.fn().mockResolvedValue('found'),
       createTx: jest.fn().mockResolvedValue('created'),
       updateTx: jest.fn().mockResolvedValue('updated'),
@@ -27,6 +28,7 @@ describe('ParticipantUnitOfWork', () => {
     );
 
     const out = await uow.run(async (tx) => {
+      await tx.lock('id');
       expect(await tx.findById('id')).toBe('found');
       expect(await tx.create({ email: 'a@b.com' } as never)).toBe('created');
       expect(await tx.update('id', { firstName: 'X' })).toBe('updated');
@@ -42,6 +44,7 @@ describe('ParticipantUnitOfWork', () => {
 
     expect(out).toBe('done');
     // every operation received the same transaction client
+    expect(participants.lockByIdTx).toHaveBeenCalledWith(client, 'id');
     expect(participants.findByIdTx).toHaveBeenCalledWith(client, 'id');
     expect(participants.createTx).toHaveBeenCalledWith(client, {
       email: 'a@b.com',

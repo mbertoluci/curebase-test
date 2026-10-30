@@ -55,6 +55,7 @@ describe('ParticipantService', () => {
   beforeEach(() => {
     repository = { findById: jest.fn(), list: jest.fn() };
     tx = {
+      lock: jest.fn().mockResolvedValue(undefined),
       findById: jest.fn(),
       create: jest.fn().mockResolvedValue(view()),
       update: jest

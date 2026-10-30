@@ -10,6 +10,7 @@ import {
   ParticipantNotFoundError,
 } from './participant.error';
 import { ParticipantRepository } from './participant.repository';
+import { ParticipantService } from './participant.service';
 import { ParticipantUnitOfWork } from './participant.unit-of-work';
 import { CreateParticipantData } from './participant.type';
 
@@ -286,6 +287,31 @@ describe('ParticipantRepository (integration)', () => {
     await expect(repo.findById(view.id)).rejects.toThrow(/no active profile/);
     await prisma.profile.delete({ where: { userId: row.userId } });
     await expect(repo.findById(view.id)).rejects.toThrow(/no active profile/);
+  });
+
+  it('serializes concurrent partial updates so neither field is lost (lost-update guard)', async () => {
+    // Two patches land at the same time, each touching a DIFFERENT measurement.
+    // Both go through the service's read-merge-write. Without the FOR UPDATE row
+    // lock they read the same "before" under READ COMMITTED and the second write
+    // clobbers the first field (classic lost update). The lock serializes them,
+    // so both changes - and a BMI derived from the fully-merged set - must survive.
+    const service = new ParticipantService(repo, uow);
+    const view = await create({
+      weight: 70,
+      height: 175,
+      unit: Unit.METRIC,
+      age: 30,
+    });
+
+    await Promise.all([
+      service.update(view.id, { weight: 80 }, 'qa'),
+      service.update(view.id, { height: 180 }, 'qa'),
+    ]);
+
+    const after = await repo.findById(view.id);
+    expect(after?.weight).toBe(80);
+    expect(after?.height).toBe(180);
+    expect(after?.bmiValue).toBe(roundBmi(computeBmi(80, 180, Unit.METRIC), 2));
   });
 
   it('does not update a deleted participant', async () => {
