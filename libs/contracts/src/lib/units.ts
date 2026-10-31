@@ -48,6 +48,14 @@ export const MEASUREMENT_BOUNDS: Record<
 /** Age is a plain integer per the schema; derive-from-DOB was out of scope. */
 export const AGE_BOUNDS: Range = { min: 0, max: 120 };
 
+/**
+ * Bounds for the numeric BMI filter. BMI is non-negative, and the stored column
+ * is Decimal(6,2), so no real record can carry a value outside this range.
+ * Bounding minBmi/maxBmi at the DTO boundary rejects nonsense (a negative value,
+ * 1e6) while still covering every value the column can actually hold.
+ */
+export const BMI_VALUE_BOUNDS: Range = { min: 0, max: 9999.99 };
+
 /** Below this age the adult WHO bands are not meaningful. */
 export const ADULT_AGE_THRESHOLD = 18;
 

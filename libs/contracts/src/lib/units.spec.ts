@@ -1,5 +1,6 @@
 import {
   AGE_BOUNDS,
+  BMI_VALUE_BOUNDS,
   convertMeasurements,
   feetInchesToInches,
   inchesToFeetInches,
@@ -112,5 +113,7 @@ describe('bounds constants', () => {
       max: 250,
     });
     expect(AGE_BOUNDS).toEqual({ min: 0, max: 120 });
+    // Non-negative and aligned to the Decimal(6,2) storage ceiling.
+    expect(BMI_VALUE_BOUNDS).toEqual({ min: 0, max: 9999.99 });
   });
 });

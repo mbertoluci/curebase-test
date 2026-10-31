@@ -7,9 +7,11 @@ import { TransactionManager } from '../../database/transaction-manager';
 import { PrismaService } from '../../database/prisma.service';
 import {
   EmailAlreadyExistsError,
+  ParticipantIntegrityError,
   ParticipantNotFoundError,
 } from './participant.error';
 import { ParticipantRepository } from './participant.repository';
+import { ParticipantService } from './participant.service';
 import { ParticipantUnitOfWork } from './participant.unit-of-work';
 import { CreateParticipantData } from './participant.type';
 
@@ -286,6 +288,74 @@ describe('ParticipantRepository (integration)', () => {
     await expect(repo.findById(view.id)).rejects.toThrow(/no active profile/);
     await prisma.profile.delete({ where: { userId: row.userId } });
     await expect(repo.findById(view.id)).rejects.toThrow(/no active profile/);
+  });
+
+  it('rejects a corrupt row with blank required PII rather than emit a blank view', async () => {
+    // A NOT NULL column can still hold a type-valid but corrupt value (empty
+    // string from a bad backfill). The view mapper must refuse it, not render a
+    // participant with no name, so the failure is loud (integrity error) here.
+    const view = await create();
+    const row = await prisma.participant.findUniqueOrThrow({
+      where: { id: view.id },
+    });
+    await prisma.profile.update({
+      where: { userId: row.userId },
+      data: { firstName: '   ' },
+    });
+    await expect(repo.findById(view.id)).rejects.toThrow(
+      ParticipantIntegrityError,
+    );
+  });
+
+  it('isolates a corrupt row in list() instead of failing the whole page', async () => {
+    // One corrupt row must not blank the list for everyone: the valid rows come
+    // back and the page does not throw, while the corrupt row is dropped and its
+    // own GET /:id still fails loud.
+    const good = await create({ email: 'good@x.com' });
+    const bad = await create({ email: 'bad@x.com' });
+    const badRow = await prisma.participant.findUniqueOrThrow({
+      where: { id: bad.id },
+    });
+    await prisma.profile.update({
+      where: { userId: badRow.userId },
+      data: { email: '' },
+    });
+
+    const page = await repo.list(
+      {},
+      { field: 'createdAt', direction: 'desc' },
+      { page: 1, pageSize: 25 },
+    );
+    expect(page.data.map((p) => p.id)).toEqual([good.id]); // bad row dropped
+    expect(page.total).toBe(2); // DB count still includes the corrupt row
+    await expect(repo.findById(bad.id)).rejects.toThrow(
+      ParticipantIntegrityError,
+    );
+  });
+
+  it('serializes concurrent partial updates so neither field is lost (lost-update guard)', async () => {
+    // Two patches land at the same time, each touching a DIFFERENT measurement.
+    // Both go through the service's read-merge-write. Without the FOR UPDATE row
+    // lock they read the same "before" under READ COMMITTED and the second write
+    // clobbers the first field (classic lost update). The lock serializes them,
+    // so both changes - and a BMI derived from the fully-merged set - must survive.
+    const service = new ParticipantService(repo, uow);
+    const view = await create({
+      weight: 70,
+      height: 175,
+      unit: Unit.METRIC,
+      age: 30,
+    });
+
+    await Promise.all([
+      service.update(view.id, { weight: 80 }, 'qa'),
+      service.update(view.id, { height: 180 }, 'qa'),
+    ]);
+
+    const after = await repo.findById(view.id);
+    expect(after?.weight).toBe(80);
+    expect(after?.height).toBe(180);
+    expect(after?.bmiValue).toBe(roundBmi(computeBmi(80, 180, Unit.METRIC), 2));
   });
 
   it('does not update a deleted participant', async () => {

@@ -1,6 +1,7 @@
 import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
 import {
   AGE_BOUNDS,
+  BMI_VALUE_BOUNDS,
   BmiBand,
   DEFAULT_PAGE_SIZE,
   DEFAULT_SORT_DIR,
@@ -145,16 +146,26 @@ export class ListParticipantQueryDto implements ListParticipantQuery {
   @IsEnum(Unit)
   unit?: Unit;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({
+    minimum: BMI_VALUE_BOUNDS.min,
+    maximum: BMI_VALUE_BOUNDS.max,
+  })
   @IsOptional()
   @Type(() => Number)
   @IsNumber()
+  @Min(BMI_VALUE_BOUNDS.min)
+  @Max(BMI_VALUE_BOUNDS.max)
   minBmi?: number;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({
+    minimum: BMI_VALUE_BOUNDS.min,
+    maximum: BMI_VALUE_BOUNDS.max,
+  })
   @IsOptional()
   @Type(() => Number)
   @IsNumber()
+  @Min(BMI_VALUE_BOUNDS.min)
+  @Max(BMI_VALUE_BOUNDS.max)
   maxBmi?: number;
 
   @ApiPropertyOptional({ minimum: AGE_BOUNDS.min, maximum: AGE_BOUNDS.max })

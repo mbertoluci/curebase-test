@@ -82,6 +82,9 @@ export class ParticipantService {
     actor: string,
   ): Promise<ParticipantView> {
     return this.uow.run(async (tx) => {
+      // Lock the row before the read-modify-write: concurrent partial updates
+      // must not read the same "before" and clobber each other's fields.
+      await tx.lock(id);
       const before = await tx.findById(id);
       if (!before) throw new ParticipantNotFoundError(id);
 
@@ -173,6 +176,8 @@ export class ParticipantService {
 
   async remove(id: string, actor: string): Promise<void> {
     await this.uow.run(async (tx) => {
+      // Serialize with concurrent writers on the same row (see update()).
+      await tx.lock(id);
       const before = await tx.findById(id);
       if (!before) throw new ParticipantNotFoundError(id);
       await tx.softDelete(id);

@@ -93,12 +93,15 @@ export function livePreview(
     !hasMeasurementPrecision(height)
   )
     return null;
-  // Display the rounded BMI, but classify on the unrounded value via the shared
-  // rule - the same the API uses on read, so the preview band never disagrees
-  // with the stored record.
+  // Round the preview BMI to 2 decimals - the SAME rounding the API stores
+  // (roundBmi(raw, 2)) - so the one-decimal display matches the table for the
+  // same inputs (otherwise a preview rounded to 1dp and the stored 2dp value can
+  // show a different tenth). Classify on the unrounded value via the shared rule,
+  // the same the API uses on read, so the preview band never disagrees with the
+  // stored record.
   const rawBmi = computeBmi(weight, height, values.unit);
   return {
-    bmi: roundBmi(rawBmi),
+    bmi: roundBmi(rawBmi, 2),
     band: classifyMeasurements(
       weight,
       height,
