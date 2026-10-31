@@ -236,18 +236,16 @@ export class ParticipantRepository {
     const weight = row.weight.toNumber();
     const height = row.height.toNumber();
     const bmiValue = row.bmiValue.toNumber();
-    // Defense in depth: the columns below are NOT NULL in the schema, but a
-    // blank required PII string or a non-finite measurement is still a valid
-    // shape the type system cannot catch (a bad backfill, a manual edit). Such a
-    // row would render a view with empty names or NaN, so treat it as an
-    // integrity violation (logged, generic 500) rather than emit it.
+    // Defense in depth: firstName/lastName/email are NOT NULL in the schema, but
+    // an empty or whitespace-only string is still a type-valid shape the DB
+    // cannot reject (a bad backfill, a manual edit). Such a row would render a
+    // view with blank PII, so treat it as an integrity violation (logged,
+    // generic 500) rather than emit it. The numeric columns are Decimal(6,2), so
+    // toNumber() is always finite - no value guard is meaningful for them.
     if (
       !profile.firstName.trim() ||
       !profile.lastName.trim() ||
-      !profile.email.trim() ||
-      !Number.isFinite(weight) ||
-      !Number.isFinite(height) ||
-      !Number.isFinite(bmiValue)
+      !profile.email.trim()
     ) {
       throw new ParticipantIntegrityError(row.id);
     }

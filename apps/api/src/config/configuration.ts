@@ -32,7 +32,10 @@ export function loadConfig(): AppConfig {
   // Fail fast where env is read, not later at listen() or on the first blocked
   // request. A non-numeric API_PORT would otherwise bind to NaN and crash deep
   // in bootstrap, and an explicitly empty WEB_ORIGIN would silently collapse to
-  // an empty allow-list that rejects every browser origin.
+  // an empty allow-list that rejects every browser origin. Port 0 (an
+  // OS-assigned ephemeral port) is rejected on purpose: this service binds and
+  // advertises a concrete port, and an empty API_PORT (Number('') === 0) is a
+  // misconfiguration, not a request for a random port.
   if (!Number.isInteger(port) || port < 1 || port > 65535) {
     throw new Error(
       `Invalid API port "${rawPort}": expected an integer in [1, 65535].`,
