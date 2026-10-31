@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { classifyMeasurements, ParticipantView } from '@org/contracts';
 import { PrismaService } from '../../database/prisma.service';
@@ -46,6 +46,8 @@ const PRISMA_ERROR = {
  */
 @Injectable()
 export class ParticipantRepository {
+  private readonly logger = new Logger(ParticipantRepository.name);
+
   constructor(private readonly prisma: PrismaService) {}
 
   // Named accessor, mirroring the "this.<table>" style from the brief.
@@ -117,7 +119,25 @@ export class ParticipantRepository {
       ],
       { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead },
     );
-    return { data: rows.map((row) => this.toView(row)), total };
+    // A single corrupt row must not fail the whole page. toView throws
+    // ParticipantIntegrityError for an integrity violation (e.g. blank PII); in
+    // the list context, log and drop that row so every valid participant stays
+    // visible. The direct read (findById) still fails loud, so the bad record
+    // surfaces on its own GET /:id. `total` is the DB count of matching rows and
+    // still includes any dropped row, so a page may hold fewer rows than total
+    // implies - an acceptable trade for not blanking the list on one bad row.
+    const data = rows.flatMap((row) => {
+      try {
+        return [this.toView(row)];
+      } catch (error) {
+        if (error instanceof ParticipantIntegrityError) {
+          this.logger.error(`Skipping participant in list: ${error.message}`);
+          return [];
+        }
+        throw error;
+      }
+    });
+    return { data, total };
   }
 
   /** Creates the user + profile + participant aggregate and returns the view. */

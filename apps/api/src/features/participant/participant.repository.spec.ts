@@ -307,6 +307,32 @@ describe('ParticipantRepository (integration)', () => {
     );
   });
 
+  it('isolates a corrupt row in list() instead of failing the whole page', async () => {
+    // One corrupt row must not blank the list for everyone: the valid rows come
+    // back and the page does not throw, while the corrupt row is dropped and its
+    // own GET /:id still fails loud.
+    const good = await create({ email: 'good@x.com' });
+    const bad = await create({ email: 'bad@x.com' });
+    const badRow = await prisma.participant.findUniqueOrThrow({
+      where: { id: bad.id },
+    });
+    await prisma.profile.update({
+      where: { userId: badRow.userId },
+      data: { email: '' },
+    });
+
+    const page = await repo.list(
+      {},
+      { field: 'createdAt', direction: 'desc' },
+      { page: 1, pageSize: 25 },
+    );
+    expect(page.data.map((p) => p.id)).toEqual([good.id]); // bad row dropped
+    expect(page.total).toBe(2); // DB count still includes the corrupt row
+    await expect(repo.findById(bad.id)).rejects.toThrow(
+      ParticipantIntegrityError,
+    );
+  });
+
   it('serializes concurrent partial updates so neither field is lost (lost-update guard)', async () => {
     // Two patches land at the same time, each touching a DIFFERENT measurement.
     // Both go through the service's read-merge-write. Without the FOR UPDATE row
