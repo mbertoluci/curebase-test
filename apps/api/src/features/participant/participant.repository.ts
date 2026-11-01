@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { classifyMeasurements, ParticipantView } from '@org/contracts';
 import { PrismaService } from '../../database/prisma.service';
@@ -46,6 +46,8 @@ const PRISMA_ERROR = {
  */
 @Injectable()
 export class ParticipantRepository {
+  private readonly logger = new Logger(ParticipantRepository.name);
+
   constructor(private readonly prisma: PrismaService) {}
 
   // Named accessor, mirroring the "this.<table>" style from the brief.
@@ -74,6 +76,24 @@ export class ParticipantRepository {
     return row ? this.toView(row) : null;
   }
 
+  /**
+   * Pessimistic row lock for the write path. Taking `FOR UPDATE` on the
+   * participant row before the read-modify-write serializes concurrent writers
+   * on the same participant: a second writer blocks until the first commits,
+   * then reads the latest committed state, so a partial update can no longer
+   * overwrite a concurrently-changed field (lost update) and the audit "before"
+   * is the true prior state. Under READ COMMITTED the lock re-reads the row, so
+   * the merge is always computed from fresh data. A lock request on an
+   * already-deleted row simply matches nothing (the caller then 404s).
+   */
+  async lockByIdTx(tx: Prisma.TransactionClient, id: string): Promise<void> {
+    await tx.$queryRaw`
+      SELECT 1 FROM participants
+      WHERE id = ${id}::uuid AND deleted_at IS NULL
+      FOR UPDATE
+    `;
+  }
+
   /** Filtered, sorted, paginated list. Returns the page plus the total count. */
   async list(
     filter: ParticipantFilter,
@@ -99,7 +119,25 @@ export class ParticipantRepository {
       ],
       { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead },
     );
-    return { data: rows.map((row) => this.toView(row)), total };
+    // A single corrupt row must not fail the whole page. toView throws
+    // ParticipantIntegrityError for an integrity violation (e.g. blank PII); in
+    // the list context, log and drop that row so every valid participant stays
+    // visible. The direct read (findById) still fails loud, so the bad record
+    // surfaces on its own GET /:id. `total` is the DB count of matching rows and
+    // still includes any dropped row, so a page may hold fewer rows than total
+    // implies - an acceptable trade for not blanking the list on one bad row.
+    const data = rows.flatMap((row) => {
+      try {
+        return [this.toView(row)];
+      } catch (error) {
+        if (error instanceof ParticipantIntegrityError) {
+          this.logger.error(`Skipping participant in list: ${error.message}`);
+          return [];
+        }
+        throw error;
+      }
+    });
+    return { data, total };
   }
 
   /** Creates the user + profile + participant aggregate and returns the view. */
@@ -181,18 +219,26 @@ export class ParticipantRepository {
     });
     if (!row) return; // caller already verified existence; nothing to do
     const deletedAt = new Date();
-    await tx.participant.update({
-      where: { ...ACTIVE, id, user: ACTIVE },
-      data: { deletedAt },
-    });
-    await tx.profile.update({
-      where: { ...ACTIVE, userId: row.userId },
-      data: { deletedAt },
-    });
-    await tx.user.update({
-      where: { ...ACTIVE, id: row.userId },
-      data: { deletedAt },
-    });
+    try {
+      await tx.participant.update({
+        where: { ...ACTIVE, id, user: ACTIVE },
+        data: { deletedAt },
+      });
+      await tx.profile.update({
+        where: { ...ACTIVE, userId: row.userId },
+        data: { deletedAt },
+      });
+      await tx.user.update({
+        where: { ...ACTIVE, id: row.userId },
+        data: { deletedAt },
+      });
+    } catch (error) {
+      // A concurrent soft-delete can set deleted_at between the read above and
+      // these guarded writes, so the update matches no active row (P2025).
+      // Translate it to the domain not-found error (-> 404) instead of letting a
+      // raw Prisma error surface as a 500, mirroring updateTx.
+      throw this.translateWriteError(error, '', id);
+    }
   }
 
   // --- mapping & query building (private) --------------------------------
@@ -209,6 +255,20 @@ export class ParticipantRepository {
     }
     const weight = row.weight.toNumber();
     const height = row.height.toNumber();
+    const bmiValue = row.bmiValue.toNumber();
+    // Defense in depth: firstName/lastName/email are NOT NULL in the schema, but
+    // an empty or whitespace-only string is still a type-valid shape the DB
+    // cannot reject (a bad backfill, a manual edit). Such a row would render a
+    // view with blank PII, so treat it as an integrity violation (logged,
+    // generic 500) rather than emit it. The numeric columns are Decimal(6,2), so
+    // toNumber() is always finite - no value guard is meaningful for them.
+    if (
+      !profile.firstName.trim() ||
+      !profile.lastName.trim() ||
+      !profile.email.trim()
+    ) {
+      throw new ParticipantIntegrityError(row.id);
+    }
     return {
       id: row.id,
       firstName: profile.firstName,
@@ -219,7 +279,7 @@ export class ParticipantRepository {
       height,
       unit: row.unit,
       age: row.age,
-      bmiValue: row.bmiValue.toNumber(),
+      bmiValue,
       // Classify on the unrounded BMI from the measurements, not the stored
       // 2-decimal bmiValue - otherwise a boundary rounding (e.g. 24.997 -> 25.00)
       // would flip the band. bmiValue stays the display/filter number.

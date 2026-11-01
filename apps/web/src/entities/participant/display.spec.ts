@@ -31,6 +31,12 @@ describe('display helpers', () => {
     expect(heightLabel(Unit.METRIC, 175)).toBe('175 cm');
   });
 
+  it('carries the inch remainder instead of printing an invalid 5\'12"', () => {
+    // 71.95 in: the remainder rounds to 12.0; it must carry into the feet.
+    expect(heightLabel(Unit.US, 71.95)).toBe(`6'0"`);
+    expect(heightLabel(Unit.US, 71.9)).toBe(`5'11.9"`);
+  });
+
   it('formats a date without throwing', () => {
     // Fixed locale + UTC: deterministic across server and client (no hydration
     // mismatch). A regression to a locale/timezone-dependent format fails here.

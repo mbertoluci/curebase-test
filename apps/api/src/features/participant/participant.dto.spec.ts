@@ -113,4 +113,23 @@ describe('ListParticipantQueryDto', () => {
     const props = (await validate(dto)).map((e) => e.property);
     expect(props).toContain('sortBy');
   });
+
+  it.each([
+    ['minBmi', -1],
+    ['maxBmi', -0.01],
+    ['minBmi', 1_000_000],
+    ['maxBmi', 10_000],
+  ])('rejects an out-of-range %s (%j)', async (field, value) => {
+    const dto = plainToInstance(ListParticipantQueryDto, { [field]: value });
+    const props = (await validate(dto)).map((e) => e.property);
+    expect(props).toContain(field);
+  });
+
+  it('accepts BMI filters inside the stored range (incl. extreme-but-valid)', async () => {
+    const dto = plainToInstance(ListParticipantQueryDto, {
+      minBmi: '0',
+      maxBmi: '2000', // a 500kg/50cm record stores BMI 2000; the filter must reach it
+    });
+    expect(await validate(dto)).toHaveLength(0);
+  });
 });

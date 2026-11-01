@@ -113,6 +113,19 @@ describe('form-model', () => {
       expect(preview?.band).toBe('NORMAL');
     });
 
+    it('rounds the preview BMI to 2 decimals, matching the stored/table value', () => {
+      // 40 kg / 150.12 cm -> raw 17.7493. Rounding the preview to 1dp (17.7) while
+      // the server stores 2dp (17.75, shown as 17.8) made the form and the table
+      // disagree by a tenth. The preview must use the server's 2-decimal rounding.
+      const preview = livePreview({
+        ...usForm,
+        unit: Unit.METRIC,
+        weight: '40',
+        heightCm: '150.12',
+      });
+      expect(preview?.bmi).toBe(17.75);
+    });
+
     it('is null until weight and height are usable', () => {
       expect(livePreview(emptyForm())).toBeNull();
     });

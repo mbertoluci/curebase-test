@@ -27,8 +27,14 @@ export function weightUnit(unit: Unit): string {
 
 export function heightLabel(unit: Unit, height: number): string {
   if (unit === Unit.US) {
-    const feet = Math.floor(height / 12);
-    const inches = Math.round((height - feet * 12) * 10) / 10;
+    let feet = Math.floor(height / 12);
+    let inches = Math.round((height - feet * 12) * 10) / 10;
+    // Rounding the remainder to 1dp can reach a full 12 (e.g. 71.95 in rounds to
+    // 12.0): carry it into the feet so the label never shows an invalid 5'12".
+    if (inches >= 12) {
+      feet += 1;
+      inches = 0;
+    }
     return `${feet}'${inches}"`;
   }
   return `${height} cm`;

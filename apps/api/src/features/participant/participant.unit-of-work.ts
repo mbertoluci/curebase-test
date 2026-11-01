@@ -17,6 +17,8 @@ import {
  * seeing a Prisma client or `$transaction`.
  */
 export interface ParticipantTx {
+  /** Take a pessimistic row lock on the participant before a read-modify-write. */
+  lock(id: string): Promise<void>;
   findById(id: string): Promise<ParticipantView | null>;
   create(data: CreateParticipantData): Promise<ParticipantView>;
   update(id: string, data: UpdateParticipantData): Promise<ParticipantView>;
@@ -43,6 +45,7 @@ export class ParticipantUnitOfWork {
   run<T>(work: (tx: ParticipantTx) => Promise<T>): Promise<T> {
     return this.transactions.run((client) =>
       work({
+        lock: (id) => this.participants.lockByIdTx(client, id),
         findById: (id) => this.participants.findByIdTx(client, id),
         create: (data) => this.participants.createTx(client, data),
         update: (id, data) => this.participants.updateTx(client, id, data),

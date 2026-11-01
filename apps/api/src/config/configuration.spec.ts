@@ -67,6 +67,19 @@ describe('loadConfig', () => {
     expect(loadConfig().port).toBe(5000);
   });
 
+  it.each(['', '  ', 'nope', '0', '-1', '70000', '3333.5'])(
+    'throws on an invalid API_PORT %j instead of binding to NaN',
+    (value) => {
+      process.env.API_PORT = value;
+      expect(() => loadConfig()).toThrow(/Invalid API port/);
+    },
+  );
+
+  it('throws when WEB_ORIGIN is set but empty instead of allowing no origin', () => {
+    process.env.WEB_ORIGIN = ' , , ';
+    expect(() => loadConfig()).toThrow(/WEB_ORIGIN is set but empty/);
+  });
+
   it('derives isProduction from NODE_ENV and passes overrides through', () => {
     process.env.NODE_ENV = 'production';
     process.env.API_GLOBAL_PREFIX = 'v1';
