@@ -1,3 +1,4 @@
+import { StrictMode } from 'react';
 import { BmiBand, ParticipantView, Unit } from '@org/contracts';
 import {
   fireEvent,
@@ -314,6 +315,48 @@ describe('ParticipantForm', () => {
     fillValidUs();
     fireEvent.click(screen.getByRole('button', { name: /Save participant/ }));
     expect(await screen.findByText('Server exploded')).toBeTruthy();
+  });
+
+  // Regression: StrictMode runs the mount effect twice. If mountedRef were only
+  // set false on cleanup (never re-armed on setup), a mounted form would read as
+  // unmounted and silently drop onSaved after every save - the whole form would
+  // look broken in dev. See the mountedRef effect in ParticipantForm.tsx.
+  it('reports a successful save under StrictMode (mountedRef re-arms)', async () => {
+    const h = handlers();
+    mockApi.update.mockResolvedValue(view);
+    render(
+      <StrictMode>
+        <ParticipantForm editing={view} {...h} />
+      </StrictMode>,
+    );
+    fireEvent.click(screen.getByRole('button', { name: /Save changes/ }));
+    await waitFor(() =>
+      expect(h.onSaved).toHaveBeenCalledWith(view, 'updated'),
+    );
+    expect(h.onSaved).toHaveBeenCalledTimes(1);
+  });
+
+  // The flip side of the same guard: a save that resolves after the form has
+  // unmounted (the user closed the modal and opened another) must NOT fire
+  // onSaved, which would act on a form that is gone.
+  it('drops onSaved when the save resolves after unmount', async () => {
+    const h = handlers();
+    let resolveUpdate!: (v: ParticipantView) => void;
+    mockApi.update.mockReturnValue(
+      new Promise<ParticipantView>((resolve) => {
+        resolveUpdate = resolve;
+      }),
+    );
+    const { unmount } = render(<ParticipantForm editing={view} {...h} />);
+    fireEvent.click(screen.getByRole('button', { name: /Save changes/ }));
+    await waitFor(() => expect(mockApi.update).toHaveBeenCalled());
+
+    unmount();
+    await act(async () => {
+      resolveUpdate(view);
+      await Promise.resolve();
+    });
+    expect(h.onSaved).not.toHaveBeenCalled();
   });
 });
 

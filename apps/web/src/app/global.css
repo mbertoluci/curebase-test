@@ -22,14 +22,17 @@
 
   /*
    * One confident primary, plus a category palette tuned to a single lightness
-   * band (~"600" tone): saturated enough to carry meaning, dark enough to pass
-   * AA as text on white, and calm enough to sit together without vibrating.
+   * band: saturated enough to carry meaning, yet dark enough that the band chips
+   * (text in the band color over a 15% tint of the same color - see display.ts)
+   * clear WCAG AA 4.5:1 for normal text. Verified contrasts on the 15% tint:
+   * red 5.01, orange 5.60, green 5.66, teal 5.76:1; all also pass as white text
+   * on their solid fills (toasts) and as text on white (danger messages).
    */
   --blue: #2563eb;
-  --red: #dc2626;
-  --orange: #d97706;
-  --green: #16a34a;
-  --teal: #0891b2;
+  --red: #b91c1c;
+  --orange: #92400e;
+  --green: #166534;
+  --teal: #155e75;
   --purple: #7c3aed;
   --indigo: #4f46e5;
   --pink: #db2777;

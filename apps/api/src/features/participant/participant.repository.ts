@@ -36,6 +36,28 @@ const PRISMA_ERROR = {
 } as const;
 
 /**
+ * A P2002's `meta.target` as a single string: a column list joined, an index
+ * name as-is, or '' when Prisma/Postgres did not surface it. Pure and exported
+ * so the mapping below can be unit-tested without a database.
+ */
+export function uniqueTargetText(target: unknown): string {
+  if (Array.isArray(target)) return target.join(',');
+  if (typeof target === 'string') return target;
+  return '';
+}
+
+/**
+ * Whether a unique-violation target names the active-email index. An empty
+ * target (unsurfaced) counts: email is the only user-driven unique in scope, so
+ * the 409 is the safe mapping - but the caller logs that case, since a blank
+ * target is an assumption, not evidence. A named non-email unique (e.g. the
+ * userId key) returns false and is rethrown as a generic 500.
+ */
+export function isEmailUniqueTarget(targetText: string): boolean {
+  return targetText === '' || /email/i.test(targetText);
+}
+
+/**
  * Data-access layer for participants. It is the ONLY place that knows the Prisma
  * schema: it builds queries, converts Decimal/Date entities into the plain
  * {@link ParticipantView} DTO, and translates database errors (unique violation)
@@ -355,7 +377,14 @@ export class ParticipantRepository {
     return out;
   }
 
-  /** Map Prisma's unique-violation (the partial email index) to a domain error. */
+  /**
+   * Translate a Prisma write error into a domain error. A missing row (P2025)
+   * with a known id becomes {@link ParticipantNotFoundError}; a unique violation
+   * (P2002) on the active-email index becomes {@link EmailAlreadyExistsError}.
+   * Any other error (including a non-email unique violation) is returned as-is
+   * and surfaces as a generic 500 via the global filter - a server bug, not a
+   * client conflict. See {@link isEmailUniqueTarget} for the email decision.
+   */
   private translateWriteError(
     error: unknown,
     email: string,
@@ -372,7 +401,17 @@ export class ParticipantRepository {
       error instanceof Prisma.PrismaClientKnownRequestError &&
       error.code === PRISMA_ERROR.UNIQUE_VIOLATION
     ) {
-      return new EmailAlreadyExistsError(email);
+      const targetText = uniqueTargetText(error.meta?.target);
+      if (targetText === '') {
+        // A 409 here is a deliberate assumption, so leave a trail: it is
+        // indistinguishable from a correctly identified email conflict otherwise.
+        this.logger.warn(
+          'P2002 without meta.target; assuming the active-email unique index',
+        );
+      }
+      if (isEmailUniqueTarget(targetText)) {
+        return new EmailAlreadyExistsError(email);
+      }
     }
     return error;
   }

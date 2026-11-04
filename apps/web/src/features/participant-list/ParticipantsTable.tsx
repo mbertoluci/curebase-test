@@ -38,7 +38,8 @@ const TH =
   'border-b border-border px-3 py-2.5 text-left whitespace-nowrap text-[0.8rem] font-semibold text-muted';
 
 // Cells: a normal table cell on desktop; a label/value row (via ::before) once
-// the table stacks into cards below 760px.
+// the table stacks into cards below the `tablet` breakpoint (--breakpoint-tablet
+// in global.css; the max-tablet: variants below track whatever that token is).
 const TD =
   'border-b border-border px-3 py-2.5 text-left whitespace-nowrap ' +
   'max-tablet:flex max-tablet:justify-between max-tablet:gap-4 max-tablet:whitespace-normal ' +

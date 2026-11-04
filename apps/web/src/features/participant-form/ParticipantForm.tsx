@@ -61,6 +61,9 @@ export function ParticipantForm({
   const [duplicate, setDuplicate] = useState<ParticipantView | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const submitInFlight = useRef(false);
+  // A save that resolves after this form has unmounted (the user closed the modal
+  // and opened another) must not call onSaved - that would close the newer form.
+  const mountedRef = useRef(true);
   // Bumped every time the edited record changes; a save that resolves against an
   // old session must not clobber the form the user has since moved on to.
   const sessionRef = useRef(0);
@@ -89,6 +92,17 @@ export function ParticipantForm({
     unitSnapshots.current = {};
     measurementEdited.current = false;
   }, [editing]);
+
+  // Track mount so an in-flight save's resolution is dropped after unmount (see
+  // handleSubmit), instead of firing onSaved into a parent that has moved on to
+  // another form. Setup and cleanup are symmetric: StrictMode runs the effect
+  // twice, so the ref must be re-set to true on every setup, not only at init.
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
 
   const preview = livePreview(values);
   const set = (field: keyof FormValues) => (value: string) => {
@@ -122,13 +136,14 @@ export function ParticipantForm({
     setSubmitting(true);
     setDuplicate(null);
     const session = sessionRef.current;
+    // An async result is stale once the form has unmounted or moved to another
+    // record; applying it then would wipe the form the user is now looking at.
+    const stale = () => !mountedRef.current || sessionRef.current !== session;
     try {
       const saved = editing
         ? await api.update(editing.id, input)
         : await api.create(input);
-      // The user may have switched to editing another record while this save was
-      // in flight; applying the result now would wipe that newer form.
-      if (sessionRef.current !== session) return;
+      if (stale()) return;
       onSaved(saved, editing ? 'updated' : 'created');
       if (!editing) {
         // A create clears the form in place (editing stays null, so the reset
@@ -139,15 +154,17 @@ export function ParticipantForm({
         measurementEdited.current = false;
       }
     } catch (error) {
-      if (sessionRef.current !== session) return;
-      await handleError(error);
+      if (stale()) return;
+      await handleError(error, stale);
     } finally {
       submitInFlight.current = false;
-      setSubmitting(false);
+      // Only touch state if still mounted; after unmount there is nothing to
+      // re-enable and React would warn on the update.
+      if (mountedRef.current) setSubmitting(false);
     }
   }
 
-  async function handleError(error: unknown) {
+  async function handleError(error: unknown, stale: () => boolean) {
     // One normalization step: field messages land on their controls, everything
     // else becomes the form-level banner (errors.form).
     const normalized = normalizeApiError(
@@ -169,9 +186,10 @@ export function ParticipantForm({
       try {
         const query = normalizeEmail(values.email);
         const page = await api.list({ search: query });
-        // The user may have corrected the email while this lookup was in flight;
-        // offering the old email's record then would point at the wrong person.
-        if (normalizeEmail(emailRef.current) !== query) return;
+        // The user may have corrected the email, or left/switched the form,
+        // while this lookup was in flight; offering the old email's record then
+        // would point at the wrong person or a form that is gone.
+        if (stale() || normalizeEmail(emailRef.current) !== query) return;
         const exact = page.data.find((p) => normalizeEmail(p.email) === query);
         setDuplicate(exact ?? null);
       } catch (lookupError) {
